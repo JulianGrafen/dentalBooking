@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { User } from '@supabase/supabase-js';
+import { isSupabaseConfigured } from '@/lib/supabase-config';
 import type { Database } from '@/types/database';
 
 export interface SessionResult {
@@ -17,6 +18,10 @@ export interface SessionResult {
  */
 export async function updateSession(request: NextRequest): Promise<SessionResult> {
   let response = NextResponse.next({ request });
+
+  if (!isSupabaseConfigured()) {
+    return { response, user: null };
+  }
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,9 +44,13 @@ export async function updateSession(request: NextRequest): Promise<SessionResult
 
   // IMPORTANT: getUser() validates the JWT against Supabase — do not replace
   // with getSession(), which trusts the (spoofable) cookie contents.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  return { response, user };
+    return { response, user };
+  } catch {
+    return { response, user: null };
+  }
 }

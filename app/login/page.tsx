@@ -1,8 +1,13 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/utils/supabase/client';
+import { isSupabaseConfigured } from '@/lib/supabase-config';
+import { loginSchema } from '@/lib/auth-schema';
+import { hasPrivateKey } from '@/lib/practice-key';
+import { SupabaseNotConfigured } from '@/components/auth/supabase-not-configured';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -21,15 +26,29 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  if (!isSupabaseConfigured()) {
+    return (
+      <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4">
+        <SupabaseNotConfigured />
+      </main>
+    );
+  }
+
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
 
+    const parsed = loginSchema.safeParse({ email, password });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? 'Ungültige Eingabe');
+      return;
+    }
+
     startTransition(async () => {
       const supabase = createSupabaseBrowserClient();
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: parsed.data.email,
+        password: parsed.data.password,
       });
 
       if (signInError) {
@@ -37,13 +56,17 @@ export default function LoginPage() {
         return;
       }
 
-      router.push('/dashboard');
+      if (hasPrivateKey()) {
+        router.push('/dashboard');
+      } else {
+        router.push('/unlock');
+      }
       router.refresh();
     });
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
+    <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <p className="text-sm font-medium text-primary">teeth.al</p>
@@ -80,6 +103,13 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" disabled={isPending}>
               {isPending ? 'Anmeldung…' : 'Anmelden'}
             </Button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              Noch kein Konto?{' '}
+              <Link href="/register" className="text-primary underline">
+                Praxis registrieren
+              </Link>
+            </p>
           </form>
         </CardContent>
       </Card>

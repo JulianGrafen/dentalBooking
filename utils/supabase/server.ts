@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { isSupabaseConfigured } from '@/lib/supabase-config';
 import type { Database } from '@/types/database';
 
 /**
@@ -7,6 +8,10 @@ import type { Database } from '@/types/database';
  * Route Handlers. Runs as the logged-in practice — all queries go through RLS.
  */
 export async function createSupabaseServerClient() {
+  if (!isSupabaseConfigured()) {
+    throw new Error('SUPABASE_NOT_CONFIGURED');
+  }
+
   const cookieStore = await cookies();
 
   return createServerClient<Database>(

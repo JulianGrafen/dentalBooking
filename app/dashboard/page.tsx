@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/utils/supabase/server';
 import { currentMonthRange, todayRange } from '@/lib/date-ranges';
 import { getBookingUrl } from '@/lib/site';
+import { isSupabaseConfigured } from '@/lib/supabase-config';
+import { SupabaseNotConfigured } from '@/components/auth/supabase-not-configured';
+import { AppointmentsTable } from '@/components/dashboard/appointments-table';
 import { BookingLinkCard } from '@/components/dashboard/booking-link-card';
-import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
@@ -11,14 +13,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 
 /**
  * Practice dashboard (RSC). All queries run as the logged-in practice
@@ -26,6 +20,14 @@ import {
  * so no explicit practice_id filter is needed here.
  */
 export default async function DashboardPage() {
+  if (!isSupabaseConfigured()) {
+    return (
+      <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4">
+        <SupabaseNotConfigured />
+      </main>
+    );
+  }
+
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -61,10 +63,6 @@ export default async function DashboardPage() {
 
   const appointments = appointmentsResult.data ?? [];
 
-  const timeFormatter = new Intl.DateTimeFormat('de-DE', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
   const dateFormatter = new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' });
 
   return (
@@ -123,39 +121,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             {appointments.length > 0 && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Uhrzeit</TableHead>
-                    <TableHead>Patient/in & Behandlung</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {appointments.map((appointment) => (
-                    <TableRow key={appointment.id}>
-                      <TableCell className="tabular-nums">
-                        {timeFormatter.format(new Date(appointment.start_time))} –{' '}
-                        {timeFormatter.format(new Date(appointment.end_time))}
-                      </TableCell>
-                      {/* E2EE: decryption happens client-side with the practice's
-                          private key — the upcoming decryption view replaces this. */}
-                      <TableCell className="text-muted-foreground">
-                        Verschlüsselt — Entschlüsselung folgt
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            appointment.status === 'cancelled' ? 'destructive' : 'default'
-                          }
-                        >
-                          {appointment.status === 'cancelled' ? 'Storniert' : 'Gebucht'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <AppointmentsTable appointments={appointments} />
             )}
           </CardContent>
         </Card>
