@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
-import { createSupabaseServerClient } from '@/utils/supabase/server';
+import { createSupabasePublicClient } from '@/utils/supabase/public';
+import { isSupabaseConfigured } from '@/lib/supabase-config';
 import { BookingWizard } from '@/components/booking/booking-wizard';
 
 interface BookingPageProps {
@@ -16,7 +17,19 @@ interface BookingPageProps {
 export default async function BookingPage({ params }: BookingPageProps) {
   const { slug } = await params;
 
-  const supabase = await createSupabaseServerClient();
+  if (!isSupabaseConfigured()) {
+    return (
+      <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-xl flex-col items-center justify-center gap-4 px-4 py-12 text-center">
+        <p className="text-sm font-medium text-primary">teeth.al</p>
+        <p className="text-muted-foreground">
+          Buchungsseite ist lokal nicht konfiguriert. Bitte{' '}
+          <code className="text-xs">npm run setup:local</code> ausführen.
+        </p>
+      </main>
+    );
+  }
+
+  const supabase = createSupabasePublicClient();
   const { data: practice } = await supabase
     .from('practices')
     .select('id, name, public_key')

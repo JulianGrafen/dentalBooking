@@ -47,6 +47,22 @@ Studio: [http://127.0.0.1:54323](http://127.0.0.1:54323) · Mailpit: [http://127
 
 > **Hinweis:** Analytics ist in `supabase/config.toml` deaktiviert (`[analytics] enabled = false`), damit der Stack unter Colima stabil startet.
 
+### Demo-Praxis (lokal)
+
+Nach `db:start` / `db:reset`:
+
+```bash
+npm run seed:demo
+```
+
+| | |
+|---|---|
+| Login | `demo@teeth.al` / `demo-pass-123` |
+| Buchung | `/book/zahnarztpraxis-dr-mueller` |
+| Recovery-Key | `.demo-recovery.txt` (gitignored) |
+
+Nach Login den Private Key unter `/unlock` einfügen (aus Recovery-Datei), dann Dashboard mit entschlüsselten Terminen.
+
 ## Routen
 
 | Route | Beschreibung |
