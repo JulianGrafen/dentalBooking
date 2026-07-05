@@ -32,15 +32,20 @@ npm run dev
 
 4. Öffnen: [http://localhost:3000/register](http://localhost:3000/register)
 
-### Option B — Lokales Supabase (Docker nötig)
+### Option B — Lokales Supabase (Colima + Docker CLI)
 
 ```bash
+brew install colima docker
+colima start --cpu 2 --memory 4
 npm install
-# Docker Desktop installieren & starten
-npm run db:start
-npm run setup:local
+npm run db:start      # Migrationen werden automatisch angewendet
+npm run setup:local   # schreibt .env.local
 npm run dev
 ```
+
+Studio: [http://127.0.0.1:54323](http://127.0.0.1:54323) · Mailpit: [http://127.0.0.1:54324](http://127.0.0.1:54324)
+
+> **Hinweis:** Analytics ist in `supabase/config.toml` deaktiviert (`[analytics] enabled = false`), damit der Stack unter Colima stabil startet.
 
 ## Routen
 
