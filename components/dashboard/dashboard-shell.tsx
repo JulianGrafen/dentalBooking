@@ -1,12 +1,20 @@
 'use client';
 
+import { MfaGuard } from '@/components/auth/mfa-guard';
 import { UnlockGuard } from '@/components/auth/unlock-guard';
+import { OnboardingProvider } from '@/components/onboarding/onboarding-provider';
 
 interface DashboardShellProps {
   children: React.ReactNode;
 }
 
-/** Wraps authenticated dashboard content behind the E2EE unlock gate. */
+/** MFA (AAL2) → E2EE unlock → dashboard content + onboarding tour. */
 export function DashboardShell({ children }: DashboardShellProps) {
-  return <UnlockGuard>{children}</UnlockGuard>;
+  return (
+    <MfaGuard>
+      <UnlockGuard>
+        <OnboardingProvider>{children}</OnboardingProvider>
+      </UnlockGuard>
+    </MfaGuard>
+  );
 }

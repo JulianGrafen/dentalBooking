@@ -73,7 +73,8 @@ Smoke-Test: `npm run test:e2e` (prüft E2EE Round-Trip + Demo-Termin).
 | `/register` | Praxis registrieren + Keypair + Recovery-Download |
 | `/login` | Login → Dashboard oder `/unlock` |
 | `/unlock` | Private Key wiederherstellen (neues Gerät) |
-| `/dashboard` | Praxis-Dashboard (Termine entschlüsselt im Browser) |
+| `/dashboard/security` | 2FA (TOTP) aktivieren/deaktivieren |
+| `/login/mfa` | TOTP-Code nach Passwort-Login |
 | `/book/[slug]` | Öffentliche Patienten-Buchung (E2EE) |
 
 ## Datenbank & Edge Functions

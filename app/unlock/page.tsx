@@ -4,7 +4,9 @@ import { useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { extractPrivateKey } from '@/lib/auth-schema';
+import { redirectAfterAuth } from '@/lib/auth-redirect';
 import { isValidPrivateKey, setPrivateKey } from '@/lib/practice-key';
+import { MfaGuard } from '@/components/auth/mfa-guard';
 import { isSupabaseConfigured } from '@/lib/supabase-config';
 import { SupabaseNotConfigured } from '@/components/auth/supabase-not-configured';
 import { Button } from '@/components/ui/button';
@@ -69,7 +71,8 @@ export default function UnlockPage() {
   }
 
   return (
-    <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4 py-8">
+    <MfaGuard>
+      <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4 py-8">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
           <p className="text-sm font-medium text-primary">teeth.al</p>
@@ -121,5 +124,6 @@ export default function UnlockPage() {
         </CardContent>
       </Card>
     </main>
+    </MfaGuard>
   );
 }

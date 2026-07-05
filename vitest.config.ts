@@ -4,7 +4,8 @@ import path from 'node:path';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['lib/**/*.test.ts'],
+    include: ['lib/**/*.test.ts', 'supabase/functions/**/*.test.ts'],
+    testTimeout: 30_000,
   },
   resolve: {
     alias: {

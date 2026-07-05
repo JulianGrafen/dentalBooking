@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/utils/supabase/client';
 import { isSupabaseConfigured } from '@/lib/supabase-config';
 import { registerSchema } from '@/lib/auth-schema';
+import { redirectAfterAuth } from '@/lib/auth-redirect';
+import { markOnboardingPending } from '@/lib/onboarding/storage';
 import { generateKeyPair } from '@/lib/crypto';
 import { downloadRecoveryKey, setPrivateKey } from '@/lib/practice-key';
 import { SupabaseNotConfigured } from '@/components/auth/supabase-not-configured';
@@ -115,8 +117,11 @@ export default function RegisterPage() {
 
   function handleRecoveryComplete() {
     setRecoveryOpen(false);
-    router.push('/dashboard');
-    router.refresh();
+    markOnboardingPending();
+    startTransition(async () => {
+      const supabase = createSupabaseBrowserClient();
+      await redirectAfterAuth(supabase, router);
+    });
   }
 
   return (

@@ -45,6 +45,82 @@ export type Database = {
         };
         Relationships: [];
       };
+      practice_members: {
+        Row: {
+          practice_id: string;
+          user_id: string;
+          member_email: string;
+          role: Database['public']['Enums']['practice_role'];
+          created_at: string;
+        };
+        Insert: {
+          practice_id: string;
+          user_id: string;
+          member_email: string;
+          role?: Database['public']['Enums']['practice_role'];
+          created_at?: string;
+        };
+        Update: {
+          practice_id?: string;
+          user_id?: string;
+          member_email?: string;
+          role?: Database['public']['Enums']['practice_role'];
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'practice_members_practice_id_fkey';
+            columns: ['practice_id'];
+            isOneToOne: false;
+            referencedRelation: 'practices';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      practice_invites: {
+        Row: {
+          id: string;
+          practice_id: string;
+          email: string;
+          role: Database['public']['Enums']['practice_role'];
+          token: string;
+          invited_by: string;
+          accepted_at: string | null;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          practice_id: string;
+          email: string;
+          role?: Database['public']['Enums']['practice_role'];
+          token?: string;
+          invited_by: string;
+          accepted_at?: string | null;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          practice_id?: string;
+          email?: string;
+          role?: Database['public']['Enums']['practice_role'];
+          token?: string;
+          invited_by?: string;
+          accepted_at?: string | null;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'practice_invites_practice_id_fkey';
+            columns: ['practice_id'];
+            isOneToOne: false;
+            referencedRelation: 'practices';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       patients: {
         Row: {
           id: string;
@@ -132,11 +208,51 @@ export type Database = {
       };
     };
     Views: Record<never, never>;
-    Functions: Record<never, never>;
+    Functions: {
+      accept_practice_invite: {
+        Args: { invite_token: string };
+        Returns: {
+          practice_id: string;
+          role: Database['public']['Enums']['practice_role'];
+        }[];
+      };
+      create_practice_invite: {
+        Args: { target_email: string };
+        Returns: {
+          token: string;
+          expires_at: string;
+        }[];
+      };
+      create_public_booking: {
+        Args: {
+          booking_slug: string;
+          encrypted_payload: string;
+          requested_start_time: string;
+          requested_end_time: string;
+        };
+        Returns: string;
+      };
+      get_public_booking_practice: {
+        Args: { booking_slug: string };
+        Returns: {
+          name: string;
+          public_key: string;
+        }[];
+      };
+      is_practice_member: {
+        Args: { target_practice_id: string; target_user_id?: string };
+        Returns: boolean;
+      };
+      is_practice_owner: {
+        Args: { target_practice_id: string; target_user_id?: string };
+        Returns: boolean;
+      };
+    };
     Enums: {
       insurance_type: 'kasse' | 'privat';
       appointment_status: 'booked' | 'cancelled';
       appointment_source: 'manual' | 'online' | 'recall' | 'smart_fill';
+      practice_role: 'owner' | 'calendar_manager';
     };
     CompositeTypes: Record<never, never>;
   };
@@ -149,3 +265,4 @@ export type Appointment = Database['public']['Tables']['appointments']['Row'];
 export type InsuranceType = Database['public']['Enums']['insurance_type'];
 export type AppointmentStatus = Database['public']['Enums']['appointment_status'];
 export type AppointmentSource = Database['public']['Enums']['appointment_source'];
+export type PracticeRole = Database['public']['Enums']['practice_role'];

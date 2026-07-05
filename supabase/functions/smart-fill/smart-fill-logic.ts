@@ -81,3 +81,60 @@ export function buildWaitlistOffer(
       `wenn Sie den Termin übernehmen möchten!\n\nIhr Praxis-Team`,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Orchestration (testable without Deno / edge runtime)
+// ---------------------------------------------------------------------------
+
+export type SmartFillResult =
+  | { action: 'skipped'; reason: string }
+  | {
+      action: 'notified';
+      appointmentId: string;
+      waitlisted: number;
+      notified: number;
+    };
+
+export interface SmartFillDependencies {
+  listWaitlistedPatients(practiceId: string): Promise<WaitlistedPatient[]>;
+  sendOffer(offer: WaitlistOffer): Promise<void>;
+}
+
+/**
+ * Core Smart-Fill pipeline — invoked by the edge function and E2E tests.
+ * Filters cancellation → short-notice window → notify waitlisted patients.
+ */
+export async function processSmartFillWebhook(
+  record: AppointmentRecord,
+  oldRecord: Pick<AppointmentRecord, 'status'> | null,
+  deps: SmartFillDependencies,
+  now: Date = new Date(),
+): Promise<SmartFillResult> {
+  if (!isNewCancellation(record, oldRecord)) {
+    return { action: 'skipped', reason: 'not a new cancellation' };
+  }
+
+  if (!isShortNoticeCancellation(record, now)) {
+    return {
+      action: 'skipped',
+      reason: `slot not within the next ${SMART_FILL_WINDOW_HOURS}h`,
+    };
+  }
+
+  const waitlisted = await deps.listWaitlistedPatients(record.practice_id);
+  let notified = 0;
+
+  for (const patient of waitlisted) {
+    const offer = buildWaitlistOffer(patient, record);
+    if (!offer) continue;
+    await deps.sendOffer(offer);
+    notified++;
+  }
+
+  return {
+    action: 'notified',
+    appointmentId: record.id,
+    waitlisted: waitlisted.length,
+    notified,
+  };
+}

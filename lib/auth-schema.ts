@@ -34,8 +34,13 @@ export const unlockSchema = z.object({
     ),
 });
 
-export type LoginInput = z.infer<typeof loginSchema>;
-export type RegisterInput = z.infer<typeof registerSchema>;
+export const totpCodeSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/\s/g, ''))
+  .pipe(z.string().regex(/^\d{6}$/, 'Code muss genau 6 Ziffern haben'));
+
+export type TotpCodeInput = z.infer<typeof totpCodeSchema>;
 
 /** Extracts the base64 key from a recovery file or raw paste. */
 export function extractPrivateKey(input: string): string {

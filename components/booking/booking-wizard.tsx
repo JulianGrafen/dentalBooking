@@ -2,15 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { de } from 'react-day-picker/locale';
-import { Badge } from '@/components/ui/badge';
+import { CheckCircle2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,18 +12,25 @@ import { Separator } from '@/components/ui/separator';
 import { bookingSchema, BOOKING_TIME_SLOTS } from '@/lib/booking-schema';
 import { encryptPatientData } from '@/lib/crypto';
 import { getTreatment, TREATMENT_TYPES, type TreatmentId } from '@/lib/treatments';
+import { StepIndicator } from '@/components/booking/step-indicator';
+import { uiClasses } from '@/lib/ui-classes';
 import { createSupabaseBrowserClient } from '@/utils/supabase/client';
+import { cn } from '@/lib/utils';
+
 import type { InsuranceType } from '@/types/database';
 
 const STEPS = ['Versicherung', 'Behandlung', 'Termin'] as const;
 
+const optionClass =
+  'flex cursor-pointer items-center gap-3 rounded-xl border border-border/80 bg-card p-4 transition-all hover:border-primary/40 hover:bg-primary/5 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 has-[[data-state=checked]]:shadow-sm';
+
 interface BookingWizardProps {
-  practiceId: string;
+  practiceSlug: string;
   /** Base64 public key of the practice — all patient data is encrypted against it. */
   practicePublicKey: string;
 }
 
-export function BookingWizard({ practiceId, practicePublicKey }: BookingWizardProps) {
+export function BookingWizard({ practiceSlug, practicePublicKey }: BookingWizardProps) {
   const [step, setStep] = useState(0);
   const [insuranceType, setInsuranceType] = useState<InsuranceType | null>(null);
   const [treatmentId, setTreatmentId] = useState<TreatmentId | null>(null);
@@ -96,12 +96,11 @@ export function BookingWizard({ practiceId, practicePublicKey }: BookingWizardPr
       );
 
       const supabase = createSupabaseBrowserClient();
-      const { error: insertError } = await supabase.from('appointments').insert({
-        practice_id: practiceId,
+      const { error: insertError } = await supabase.rpc('create_public_booking', {
+        booking_slug: practiceSlug,
         encrypted_payload: encryptedPayload,
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
-        source: 'online',
+        requested_start_time: startTime.toISOString(),
+        requested_end_time: endTime.toISOString(),
       });
 
       if (insertError) {
@@ -116,51 +115,46 @@ export function BookingWizard({ practiceId, practicePublicKey }: BookingWizardPr
 
   if (confirmed) {
     return (
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle>Termin angefragt</CardTitle>
-          <CardDescription>
-            Vielen Dank, {patientName}! Ihre verschlüsselte Buchung ist eingegangen —
-            die Praxis meldet sich zur Bestätigung bei Ihnen.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <div className={cn(uiClasses.glassCard, 'p-8 text-center')}>
+        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+          <CheckCircle2 className="size-7" />
+        </div>
+        <h2 className="text-xl font-semibold">Termin angefragt</h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Vielen Dank, {patientName}! Ihre verschlüsselte Buchung ist eingegangen —
+          die Praxis meldet sich zur Bestätigung bei Ihnen.
+        </p>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          {STEPS.map((label, index) => (
-            <Badge key={label} variant={index === step ? 'default' : 'secondary'}>
-              {index + 1}. {label}
-            </Badge>
-          ))}
-        </div>
-        <CardTitle className="pt-2">{STEPS[step]}</CardTitle>
-        <CardDescription>
+    <div className={cn(uiClasses.glassCard, 'overflow-hidden')}>
+      <div className="border-b border-border/60 bg-muted/30 px-6 py-5">
+        <StepIndicator steps={STEPS} currentStep={step} />
+        <h2 className="mt-4 text-lg font-semibold">{STEPS[step]}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           {step === 0 && 'Wie sind Sie versichert?'}
           {step === 1 && 'Welche Behandlung benötigen Sie?'}
           {step === 2 && 'Wählen Sie Wunschtermin und geben Sie Ihre Kontaktdaten an.'}
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </div>
 
-      <CardContent className="space-y-6">
+      <div className="space-y-6 p-6">
         {step === 0 && (
           <RadioGroup
             value={insuranceType ?? ''}
             onValueChange={(value) => setInsuranceType(value as InsuranceType)}
             className="gap-3"
           >
-            <Label className="flex cursor-pointer items-center gap-3 rounded-lg border p-4 has-[[data-state=checked]]:border-primary">
+            <Label className={optionClass}>
               <RadioGroupItem value="kasse" />
               <div>
                 <p className="font-medium">Gesetzlich versichert</p>
                 <p className="text-sm text-muted-foreground">Kassenpatient/in</p>
               </div>
             </Label>
-            <Label className="flex cursor-pointer items-center gap-3 rounded-lg border p-4 has-[[data-state=checked]]:border-primary">
+            <Label className={optionClass}>
               <RadioGroupItem value="privat" />
               <div>
                 <p className="font-medium">Privat versichert</p>
@@ -179,7 +173,7 @@ export function BookingWizard({ practiceId, practicePublicKey }: BookingWizardPr
             {TREATMENT_TYPES.map((treatment) => (
               <Label
                 key={treatment.id}
-                className="flex cursor-pointer items-center gap-3 rounded-lg border p-4 has-[[data-state=checked]]:border-primary"
+                className={optionClass}
               >
                 <RadioGroupItem value={treatment.id} />
                 <div className="flex w-full items-center justify-between">
@@ -195,7 +189,7 @@ export function BookingWizard({ practiceId, practicePublicKey }: BookingWizardPr
 
         {step === 2 && (
           <div className="space-y-6">
-            <div className="flex justify-center rounded-lg border p-2">
+            <div className="flex justify-center rounded-xl border border-border/60 bg-card p-3 shadow-inner">
               <Calendar
                 mode="single"
                 locale={de}
@@ -260,9 +254,11 @@ export function BookingWizard({ practiceId, practicePublicKey }: BookingWizardPr
           </div>
         )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+        )}
 
-        <div className="flex justify-between">
+        <div className="flex items-center justify-between border-t border-border/60 pt-4">
           <Button
             type="button"
             variant="ghost"
@@ -273,16 +269,27 @@ export function BookingWizard({ practiceId, practicePublicKey }: BookingWizardPr
           </Button>
 
           {step < STEPS.length - 1 ? (
-            <Button type="button" disabled={!canContinue} onClick={() => setStep(step + 1)}>
+            <Button
+              type="button"
+              disabled={!canContinue}
+              onClick={() => setStep(step + 1)}
+              className="min-w-28 shadow-sm shadow-primary/20"
+            >
               Weiter
             </Button>
           ) : (
-            <Button type="button" disabled={!canSubmit || isPending} onClick={handleSubmit}>
-              {isPending ? 'Wird gebucht…' : 'Termin buchen'}
+            <Button
+              type="button"
+              disabled={!canSubmit || isPending}
+              onClick={handleSubmit}
+              className="min-w-36 gap-2 shadow-sm shadow-primary/20"
+            >
+              <Lock className="size-4" />
+              {isPending ? 'Wird gebucht…' : 'Verschlüsselt buchen'}
             </Button>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
