@@ -2,62 +2,72 @@
 
 Termin- und Praxis-Management-SaaS für Zahnarztpraxen.
 
-**Stack:** Next.js (App Router) · Supabase (Auth, Postgres + RLS, Edge Functions, pg_cron) · Tailwind CSS 4 · shadcn/ui
+**Stack:** Next.js (App Router) · Supabase (Auth, Postgres + RLS, Edge Functions, pg_cron) · Tailwind CSS 4 · shadcn/ui · tweetnacl (E2EE)
 
 ## Features (MVP)
 
 | Feature | Umsetzung |
 | --- | --- |
 | Multi-Tenancy | Jede Tabelle trägt `practice_id`; strikte RLS-Policies (`practice_id = auth.uid()`) |
-| Online-Buchung | `/book/[practiceId]` — 3-Schritt-Wizard (Versicherung → Behandlung → Termin) |
-| Recall-Engine | Edge Function `recall-engine`, täglich via pg_cron; erinnert Patienten 6 Monate nach dem letzten Besuch |
-| Smart-Fill | Edge Function `smart-fill`, ausgelöst per DB-Trigger bei kurzfristigen Absagen (< 48 h); benachrichtigt Wartelisten-Patienten |
-| Dashboard | `/dashboard` — heutige Termine + Metriken (Recall-Buchungen, Smart-Fill-Lücken) |
+| Zero-Knowledge Buchung | `/book/[slug]` — Patientendaten werden im Browser verschlüsselt; Supabase sieht nur Ciphertext |
+| E2EE Auth | `/register` generiert Keypair; Private Key nur im Browser + Recovery-Datei |
+| Recall-Engine | Edge Function `recall-engine`, täglich via pg_cron |
+| Smart-Fill | Edge Function `smart-fill`, DB-Trigger bei kurzfristigen Absagen |
+| Dashboard | `/dashboard` — entschlüsselte Termine, Buchungslink, Metriken |
 
-## Setup
+## Schnellstart (lokal)
 
-### 1. Environment
+### Option A — Hosted Supabase (empfohlen, kein Docker)
 
-```bash
-cp .env.example .env.local
-# NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY eintragen
-```
-
-### 2. Datenbank
-
-```bash
-supabase link --project-ref <project-ref>
-supabase db push          # führt supabase/migrations/*.sql aus
-```
-
-Vor den Migrationen 2 + 3 einmalig Vault-Secrets anlegen (SQL-Editor):
-
-```sql
-select vault.create_secret('https://<project-ref>.supabase.co', 'project_url');
-select vault.create_secret('<anon-key>', 'anon_key');
-select vault.create_secret('<random-secret-1>', 'recall_cron_secret');
-select vault.create_secret('<random-secret-2>', 'smart_fill_webhook_secret');
-```
-
-### 3. Edge Functions
-
-```bash
-supabase secrets set RECALL_CRON_SECRET=<random-secret-1>
-supabase secrets set SMART_FILL_WEBHOOK_SECRET=<random-secret-2>
-supabase functions deploy recall-engine
-supabase functions deploy smart-fill
-```
-
-### 4. Entwicklung
+1. Projekt anlegen: [supabase.com/dashboard](https://supabase.com/dashboard)
+2. **Authentication → Providers → Email:** „Confirm email" für Dev deaktivieren
+3. Credentials setzen:
 
 ```bash
 npm install
+npm run setup -- https://DEIN-PROJEKT.supabase.co eyJ...anon-key...
+npm run db:push    # nach `npx supabase login` + `npx supabase link`
 npm run dev
+```
+
+4. Öffnen: [http://localhost:3000/register](http://localhost:3000/register)
+
+### Option B — Lokales Supabase (Docker nötig)
+
+```bash
+npm install
+# Docker Desktop installieren & starten
+npm run db:start
+npm run setup:local
+npm run dev
+```
+
+## Routen
+
+| Route | Beschreibung |
+| --- | --- |
+| `/` | Landing |
+| `/register` | Praxis registrieren + Keypair + Recovery-Download |
+| `/login` | Login → Dashboard oder `/unlock` |
+| `/unlock` | Private Key wiederherstellen (neues Gerät) |
+| `/dashboard` | Praxis-Dashboard (Termine entschlüsselt im Browser) |
+| `/book/[slug]` | Öffentliche Patienten-Buchung (E2EE) |
+
+## Datenbank & Edge Functions
+
+Migrationen liegen in `supabase/migrations/`. Für Recall/Smart-Fill Cron-Jobs zusätzlich Vault-Secrets (siehe Migrationen 0002/0003).
+
+```bash
+npx supabase login
+npx supabase link --project-ref <project-ref>
+npm run db:push
+npx supabase functions deploy recall-engine
+npx supabase functions deploy smart-fill
 ```
 
 ## Architektur-Notizen
 
-- **Tenancy-Modell:** Ein Auth-User == eine Praxis (`practices.id` == `auth.users.id`). Ein Signup-Trigger provisioniert die Praxis-Zeile automatisch. Für Multi-Staff später: `practice_members`-Tabelle + Policy-Prädikat tauschen.
-- **Öffentliche Buchung:** Anonyme Patienten kommen durch RLS bewusst nicht durch. Die Buchung läuft über eine Server Action mit Service-Role-Client und strikter zod-Validierung an der Systemgrenze (`app/book/[practiceId]/actions.ts`).
-- **Types:** `types/database.ts` spiegelt die Migrationen im Format von `supabase gen types typescript` — nach dem Linken des Projekts einfach regenerieren.
-- **E-Mail-Versand:** Im MVP simuliert (`console.log` in den Edge Functions); Austauschpunkt für Resend & Co. ist markiert.
+- **Tenancy:** Ein Auth-User == eine Praxis. Signup-Trigger provisioniert `practices` inkl. Slug.
+- **Zero-Knowledge:** `appointments.encrypted_payload` ist Ciphertext; `practices.public_key` ist öffentlich lesbar für anon.
+- **Private Key:** Nie an Supabase — nur `localStorage` + Recovery-Datei.
+- **Types:** `types/database.ts` — regenerieren mit `npx supabase gen types typescript --linked`.

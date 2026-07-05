@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "setup": "node scripts/setup-env.mjs",
+    "setup:local": "node scripts/setup-local.mjs",
+    "db:start": "npx supabase start",
+    "db:stop": "npx supabase stop",
+    "db:reset": "npx supabase db reset",
+    "db:push": "npx supabase db push"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
