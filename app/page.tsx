@@ -114,7 +114,7 @@ const plans = [
   },
   {
     name: 'Practice',
-    price: '89 € / Monat',
+    price: '139 € / Monat',
     description: 'Für Praxen mit aktivem Terminmanagement.',
     cta: 'Praxis anlegen',
     href: '/register',
@@ -188,7 +188,7 @@ const faqs = [
   ],
   [
     'Was kostet eine Online-Terminverwaltung für Zahnarztpraxen?',
-    'Der Einstieg ist kostenlos: Der Starter-Tarif enthält Buchungslink, verschlüsselte Termine und Kalender. Der Practice-Tarif mit Smart-Fill, Recall-Engine und Team-Zugriff kostet 89 € pro Monat zzgl. MwSt. Für Praxisgruppen mit mehreren Standorten gibt es individuelle Clinic-Konditionen.',
+    'Der Einstieg ist kostenlos: Der Starter-Tarif enthält Buchungslink, verschlüsselte Termine und Kalender. Der Practice-Tarif mit Smart-Fill, Recall-Engine und Team-Zugriff kostet 139 € pro Monat zzgl. MwSt. Für Praxisgruppen mit mehreren Standorten gibt es individuelle Clinic-Konditionen.',
   ],
 ] as const;
 
@@ -265,10 +265,10 @@ const structuredData = {
         {
           '@type': 'Offer',
           name: 'Practice',
-          price: '89',
+          price: '139',
           priceCurrency: 'EUR',
           description:
-            'Smart-Fill, Recall-Engine, Termin-E-Mails und Team-Zugriff für 89 € pro Monat zzgl. MwSt.',
+            'Smart-Fill, Recall-Engine, Termin-E-Mails und Team-Zugriff für 139 € pro Monat zzgl. MwSt.',
         },
       ],
       provider: { '@id': `${SITE_URL}/#organization` },
