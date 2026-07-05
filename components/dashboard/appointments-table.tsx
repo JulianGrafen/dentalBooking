@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -12,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { decryptPatientData } from '@/lib/crypto';
-import { getPrivateKey, hasPrivateKey } from '@/lib/practice-key';
+import { getPrivateKey } from '@/lib/practice-key';
 
 interface EncryptedAppointment {
   id: string;
@@ -38,14 +37,6 @@ interface AppointmentsTableProps {
 }
 
 export function AppointmentsTable({ appointments }: AppointmentsTableProps) {
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!hasPrivateKey()) {
-      router.replace('/unlock');
-    }
-  }, [router]);
-
   const rows = useMemo<DecryptedRow[]>(() => {
     const privateKey = getPrivateKey();
     if (!privateKey) return [];
@@ -81,14 +72,6 @@ export function AppointmentsTable({ appointments }: AppointmentsTableProps) {
     hour: '2-digit',
     minute: '2-digit',
   });
-
-  if (!hasPrivateKey()) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Private Key wird geladen…
-      </p>
-    );
-  }
 
   return (
     <Table>

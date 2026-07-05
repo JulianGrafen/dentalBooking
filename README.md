@@ -63,6 +63,8 @@ npm run seed:demo
 
 Nach Login den Private Key unter `/unlock` einfügen (aus Recovery-Datei), dann Dashboard mit entschlüsselten Terminen.
 
+Smoke-Test: `npm run test:e2e` (prüft E2EE Round-Trip + Demo-Termin).
+
 ## Routen
 
 | Route | Beschreibung |

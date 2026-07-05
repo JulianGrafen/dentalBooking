@@ -1,6 +1,6 @@
 /**
- * Seeds a fully configured local demo practice (E2EE keys + booking link).
- * Uses fetch only — no supabase-js (avoids WebSocket dependency in Node 20).
+ * Seeds a fully configured local demo practice (E2EE keys + booking link +
+ * one encrypted sample appointment for today's dashboard).
  */
 
 import nacl from 'tweetnacl';
@@ -8,7 +8,7 @@ import naclUtil from 'tweetnacl-util';
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const { encodeBase64 } = naclUtil;
+const { encodeBase64, decodeBase64, decodeUTF8 } = naclUtil;
 
 const ROOT = resolve(import.meta.dirname, '..');
 const RECOVERY_PATH = resolve(ROOT, '.demo-recovery.txt');
@@ -35,20 +35,45 @@ function generateKeyPair() {
   };
 }
 
+function encryptPatientData(payload, practicePublicKeyBase64) {
+  const ephemeral = nacl.box.keyPair();
+  const nonce = nacl.randomBytes(nacl.box.nonceLength);
+  const ciphertext = nacl.box(
+    decodeUTF8(JSON.stringify(payload)),
+    nonce,
+    decodeBase64(practicePublicKeyBase64),
+    ephemeral.secretKey,
+  );
+
+  return JSON.stringify({
+    v: 1,
+    alg: 'nacl.box.x25519-xsalsa20-poly1305',
+    epk: encodeBase64(ephemeral.publicKey),
+    nonce: encodeBase64(nonce),
+    ciphertext: encodeBase64(ciphertext),
+  });
+}
+
+/** Returns a slot today at 10:00 or 14:00 (whichever is still in the future). */
+function todaySampleSlot() {
+  const start = new Date();
+  start.setSeconds(0, 0);
+  start.setHours(10, 0, 0, 0);
+  if (start <= new Date()) {
+    start.setHours(14, 0, 0, 0);
+  }
+  const end = new Date(start.getTime() + 60 * 60 * 1000);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
 async function authRequest(path, body) {
   const response = await fetch(`${SUPABASE_URL}/auth/v1${path}`, {
     method: 'POST',
-    headers: {
-      apikey: ANON_KEY,
-      'Content-Type': 'application/json',
-    },
+    headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-
   const json = await response.json();
-  if (!response.ok) {
-    throw new Error(json.msg ?? json.message ?? JSON.stringify(json));
-  }
+  if (!response.ok) throw new Error(json.msg ?? json.message ?? JSON.stringify(json));
   return json;
 }
 
@@ -63,12 +88,44 @@ async function patchPractice(userId, publicKey) {
     },
     body: JSON.stringify({ public_key: publicKey }),
   });
-
   const json = await response.json();
-  if (!response.ok) {
-    throw new Error(JSON.stringify(json));
-  }
+  if (!response.ok) throw new Error(JSON.stringify(json));
   return json[0];
+}
+
+async function seedSampleAppointment(practiceId, publicKey) {
+  const slot = todaySampleSlot();
+  const encrypted = encryptPatientData(
+    {
+      name: 'Max Mustermann (Demo)',
+      email: 'max.demo@example.de',
+      phone: '+49 170 0000000',
+      insuranceType: 'kasse',
+      treatment: 'Prophylaxe / Zahnreinigung',
+    },
+    publicKey,
+  );
+
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/appointments`, {
+    method: 'POST',
+    headers: {
+      apikey: SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify({
+      practice_id: practiceId,
+      encrypted_payload: encrypted,
+      start_time: slot.start,
+      end_time: slot.end,
+      source: 'online',
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
 }
 
 function writeRecoveryFile(practiceName, email, password, privateKey, slug) {
@@ -98,7 +155,7 @@ async function main() {
       password: DEMO.password,
     });
     userId = signIn.user.id;
-    console.log('✓ Demo-User existiert bereits — Public Key wird aktualisiert');
+    console.log('✓ Demo-User existiert — Keys & Termin werden aktualisiert');
   } catch {
     const signUp = await authRequest('/signup', {
       email: DEMO.email,
@@ -110,6 +167,7 @@ async function main() {
   }
 
   const practice = await patchPractice(userId, keyPair.publicKey);
+  await seedSampleAppointment(userId, keyPair.publicKey);
   writeRecoveryFile(DEMO.practiceName, DEMO.email, DEMO.password, keyPair.privateKey, practice.slug);
 
   console.log('');
@@ -119,8 +177,9 @@ async function main() {
   console.log(`  Passwort: ${DEMO.password}`);
   console.log(`  Buchung:  http://localhost:3000/book/${practice.slug}`);
   console.log(`  Recovery: ${RECOVERY_PATH}`);
+  console.log('  Termin:   1 Demo-Termin für heute im Dashboard (nach Unlock)');
   console.log('');
-  console.log('Nach Login: Private Key unter /unlock einfügen (aus Recovery-Datei).');
+  console.log('Flow: Login → /unlock (Recovery-Key einfügen) → Dashboard');
 }
 
 main().catch((error) => {

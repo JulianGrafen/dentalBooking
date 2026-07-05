@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from '@/lib/supabase-config';
 import { SupabaseNotConfigured } from '@/components/auth/supabase-not-configured';
 import { AppointmentsTable } from '@/components/dashboard/appointments-table';
 import { BookingLinkCard } from '@/components/dashboard/booking-link-card';
+import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import {
   Card,
   CardContent,
@@ -66,7 +67,8 @@ export default async function DashboardPage() {
   const dateFormatter = new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' });
 
   return (
-    <main className="mx-auto max-w-5xl space-y-8 px-4 py-10">
+    <DashboardShell>
+      <main className="mx-auto max-w-5xl space-y-8 px-4 py-10">
       <header className="space-y-1">
         <p className="text-sm font-medium text-primary">teeth.al</p>
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -126,6 +128,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </section>
-    </main>
+      </main>
+    </DashboardShell>
   );
 }
