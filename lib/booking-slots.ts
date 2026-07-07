@@ -54,6 +54,11 @@ function rangesOverlap(
   return aStart < bEnd && bStart < aEnd;
 }
 
+/** True when an existing booking starts at the same instant as the candidate slot. */
+function hasExactBookedStart(candidateStart: string, booked: BookedInterval[]): boolean {
+  return booked.some((booking) => booking.start_time === candidateStart);
+}
+
 /** Free quarter-hour slots for a date, treatment duration and existing bookings. */
 export function getAvailableBookingSlots(
   isoDate: string,
@@ -88,14 +93,21 @@ export function getBookingSlotOptions(
 
   const candidates = generateCandidateSlots(opening.open, opening.close, durationMinutes);
 
-  return candidates.flatMap((slot) => {
+  return candidates.flatMap((slot): BookingSlotOption[] => {
     const { start_time, end_time } = buildSlotTimes(isoDate, slot, durationMinutes);
     if (!isWithinBookingLeadTime(start_time, now)) return [];
 
-    const isOccupied = booked.some((booking) =>
+    if (hasExactBookedStart(start_time, booked)) {
+      return [{ time: slot, status: 'waitlist' }];
+    }
+
+    const overlapsExistingBooking = booked.some((booking) =>
       rangesOverlap(start_time, end_time, booking.start_time, booking.end_time),
     );
 
-    return [{ time: slot, status: isOccupied ? 'waitlist' : 'available' }];
+    // Partial overlap: treatment would run into an existing appointment — hide slot.
+    if (overlapsExistingBooking) return [];
+
+    return [{ time: slot, status: 'available' }];
   });
 }

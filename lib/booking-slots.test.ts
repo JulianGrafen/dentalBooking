@@ -53,7 +53,7 @@ describe('getAvailableBookingSlots', () => {
 });
 
 describe('getBookingSlotOptions', () => {
-  it('marks occupied future slots as waitlistable', () => {
+  it('marks only exact start times as waitlistable', () => {
     const booked = [
       {
         start_time: '2026-07-13T07:00:00.000Z',
@@ -74,5 +74,30 @@ describe('getBookingSlotOptions', () => {
         { time: '09:30', status: 'available' },
       ]),
     );
+    expect(slots.map((slot) => slot.time)).not.toContain('08:45');
+  });
+
+  it('does not mark earlier slots before an appointment as waitlist', () => {
+    const booked = [
+      {
+        start_time: '2026-07-10T12:15:00.000Z',
+        end_time: '2026-07-10T12:45:00.000Z',
+      },
+    ];
+
+    const slots = getBookingSlotOptions(
+      '2026-07-10',
+      30,
+      booked,
+      new Date('2026-07-09T12:00:00.000Z'),
+    );
+
+    expect(slots).toEqual(
+      expect.arrayContaining([
+        { time: '13:45', status: 'available' },
+        { time: '14:15', status: 'waitlist' },
+      ]),
+    );
+    expect(slots.map((slot) => slot.time)).not.toContain('14:00');
   });
 });
