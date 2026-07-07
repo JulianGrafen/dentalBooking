@@ -1,4 +1,9 @@
-import { buildSlotTimes, isWithinBookingLeadTime } from '@/lib/appointment-times';
+import {
+  buildSlotTimes,
+  isSameInstant,
+  isWithinBookingLeadTime,
+  rangesOverlapInstant,
+} from '@/lib/appointment-times';
 import { getOpeningHoursForDate } from '@/lib/booking-hours';
 
 export const QUARTER_HOUR_MINUTES = 15;
@@ -45,18 +50,9 @@ export function generateCandidateSlots(
   return slots;
 }
 
-function rangesOverlap(
-  aStart: string,
-  aEnd: string,
-  bStart: string,
-  bEnd: string,
-): boolean {
-  return aStart < bEnd && bStart < aEnd;
-}
-
 /** True when an existing booking starts at the same instant as the candidate slot. */
 function hasExactBookedStart(candidateStart: string, booked: BookedInterval[]): boolean {
-  return booked.some((booking) => booking.start_time === candidateStart);
+  return booked.some((booking) => isSameInstant(booking.start_time, candidateStart));
 }
 
 /** Free quarter-hour slots for a date, treatment duration and existing bookings. */
@@ -76,7 +72,7 @@ export function getAvailableBookingSlots(
     if (!isWithinBookingLeadTime(start_time, now)) return false;
 
     return !booked.some((booking) =>
-      rangesOverlap(start_time, end_time, booking.start_time, booking.end_time),
+      rangesOverlapInstant(start_time, end_time, booking.start_time, booking.end_time),
     );
   });
 }
@@ -102,7 +98,7 @@ export function getBookingSlotOptions(
     }
 
     const overlapsExistingBooking = booked.some((booking) =>
-      rangesOverlap(start_time, end_time, booking.start_time, booking.end_time),
+      rangesOverlapInstant(start_time, end_time, booking.start_time, booking.end_time),
     );
 
     // Partial overlap: treatment would run into an existing appointment — hide slot.

@@ -4,7 +4,6 @@ import { createSupabasePublicClient } from '@/utils/supabase/public';
 import { isSupabaseConfigured } from '@/lib/supabase-config';
 import { uiClasses } from '@/lib/ui-classes';
 import { BookingWizard } from '@/components/booking/booking-wizard';
-import { isWaitlistBookingAvailable } from '@/lib/server/booking-capabilities';
 
 interface BookingPageProps {
   params: Promise<{ slug: string }>;
@@ -29,10 +28,9 @@ export default async function BookingPage({ params }: BookingPageProps) {
   }
 
   const supabase = createSupabasePublicClient();
-  const [practiceResult, treatmentsResult, waitlistEnabled] = await Promise.all([
+  const [practiceResult, treatmentsResult] = await Promise.all([
     supabase.rpc('get_public_booking_practice', { booking_slug: slug }),
     supabase.rpc('get_public_booking_treatments', { booking_slug: slug }),
-    isWaitlistBookingAvailable(),
   ]);
 
   const { data, error } = practiceResult;
@@ -108,7 +106,6 @@ export default async function BookingPage({ params }: BookingPageProps) {
         practiceSlug={slug}
         practicePublicKey={practice.public_key}
         treatments={treatments}
-        waitlistEnabled={waitlistEnabled}
       />
     </main>
   );

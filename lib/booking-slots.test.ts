@@ -100,4 +100,26 @@ describe('getBookingSlotOptions', () => {
     );
     expect(slots.map((slot) => slot.time)).not.toContain('14:00');
   });
+
+  it('detects booked slots when Postgres returns a different timestamp format', () => {
+    const booked = [
+      {
+        start_time: '2026-07-10 12:15:00+00',
+        end_time: '2026-07-10 12:45:00+00',
+      },
+    ];
+
+    const slots = getBookingSlotOptions(
+      '2026-07-10',
+      30,
+      booked,
+      new Date('2026-07-09T12:00:00.000Z'),
+    );
+
+    expect(slots).toEqual(expect.arrayContaining([{ time: '14:15', status: 'waitlist' }]));
+    expect(slots.map((slot) => slot.time)).not.toContain('14:00');
+    expect(slots.some((slot) => slot.time === '14:15' && slot.status === 'available')).toBe(
+      false,
+    );
+  });
 });

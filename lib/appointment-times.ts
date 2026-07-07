@@ -1,5 +1,23 @@
 import { PRACTICE_TIMEZONE } from '@/lib/booking-hours';
 
+/** Parse any Postgres/ISO timestamp to epoch milliseconds for reliable comparisons. */
+export function toInstantMs(iso: string): number {
+  return new Date(iso).getTime();
+}
+
+export function isSameInstant(a: string, b: string): boolean {
+  return toInstantMs(a) === toInstantMs(b);
+}
+
+export function rangesOverlapInstant(
+  aStart: string,
+  aEnd: string,
+  bStart: string,
+  bEnd: string,
+): boolean {
+  return toInstantMs(aStart) < toInstantMs(bEnd) && toInstantMs(bStart) < toInstantMs(aEnd);
+}
+
 /** Converts wall-clock date + HH:mm in the practice timezone to a UTC ISO string. */
 export function wallTimeToUtcIso(
   isoDate: string,

@@ -13,7 +13,6 @@ import { createBookingSchema } from '@/lib/booking-schema';
 import { mapBookingError } from '@/lib/booking-errors';
 import { formatOpeningHoursLabel, getOpeningHoursForDate } from '@/lib/booking-hours';
 import {
-  getAvailableBookingSlots,
   getBookingSlotOptions,
   type BookedInterval,
   type BookingSlotOption,
@@ -39,8 +38,6 @@ interface BookingWizardProps {
   /** Base64 public key of the practice — all patient data is encrypted against it. */
   practicePublicKey: string;
   treatments: PracticeBookingTreatment[];
-  /** False when waitlist RPCs are not deployed yet — only free slots are shown. */
-  waitlistEnabled?: boolean;
 }
 
 function toIsoDate(value: Date): string {
@@ -53,7 +50,6 @@ export function BookingWizard({
   practiceSlug,
   practicePublicKey,
   treatments,
-  waitlistEnabled = false,
 }: BookingWizardProps) {
   const bookingSchema = useMemo(
     () =>
@@ -87,21 +83,12 @@ export function BookingWizard({
 
   const slotOptions = useMemo<BookingSlotOption[]>(() => {
     if (!date || !selectedTreatment) return [];
-
-    if (!waitlistEnabled) {
-      return getAvailableBookingSlots(
-        toIsoDate(date),
-        selectedTreatment.durationMinutes,
-        bookedIntervals,
-      ).map((time) => ({ time, status: 'available' as const }));
-    }
-
     return getBookingSlotOptions(
       toIsoDate(date),
       selectedTreatment.durationMinutes,
       bookedIntervals,
     );
-  }, [date, selectedTreatment, bookedIntervals, waitlistEnabled]);
+  }, [date, selectedTreatment, bookedIntervals]);
 
   const selectedSlotOption = useMemo(
     () => slotOptions.find((slot) => slot.time === timeSlot) ?? null,
@@ -222,8 +209,7 @@ export function BookingWizard({
       );
 
       const supabase = createSupabasePublicBrowserClient();
-      const isWaitlistRequest =
-        waitlistEnabled && selectedSlotOption?.status === 'waitlist';
+      const isWaitlistRequest = selectedSlotOption?.status === 'waitlist';
       const { error: insertError } = isWaitlistRequest
         ? await supabase.rpc('create_public_waitlist_entry', {
             booking_slug: practiceSlug,
