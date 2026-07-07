@@ -90,9 +90,11 @@ export async function POST(request: Request, context: RouteContext) {
     );
   } catch (error) {
     console.error('[reschedule] email failed:', error);
+    const message =
+      error instanceof Error ? error.message : 'E-Mail konnte nicht gesendet werden';
     return NextResponse.json(
       {
-        error: 'Termin verschoben, aber E-Mail konnte nicht gesendet werden',
+        error: `Termin verschoben, aber ${message}`,
         appointment: updated,
       },
       { status: 502 },

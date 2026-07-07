@@ -43,6 +43,7 @@ export async function POST(request: Request, context: RouteContext) {
     .single();
 
   if (updateError || !updated) {
+    console.error('[cancel] update failed:', updateError?.message);
     return NextResponse.json({ error: 'Stornierung fehlgeschlagen' }, { status: 500 });
   }
 
@@ -61,9 +62,11 @@ export async function POST(request: Request, context: RouteContext) {
     );
   } catch (error) {
     console.error('[cancel] email failed:', error);
+    const message =
+      error instanceof Error ? error.message : 'E-Mail konnte nicht gesendet werden';
     return NextResponse.json(
       {
-        error: 'Termin storniert, aber E-Mail konnte nicht gesendet werden',
+        error: `Termin storniert, aber ${message}`,
         appointment: updated,
       },
       { status: 502 },

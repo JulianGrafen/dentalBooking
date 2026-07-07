@@ -23,6 +23,8 @@ import { generateCandidateSlots } from '@/lib/booking-slots';
 import type { DecryptedAppointment } from '@/lib/appointment-decrypt';
 import { appointmentDurationMinutes } from '@/lib/appointment-times';
 import { formatAppointmentTimeRange } from '@/lib/format-datetime';
+import { isAwaitingConfirmation } from '@/lib/appointment-confirmation';
+import { emailActionMessage } from '@/lib/email/send-email';
 import { cn } from '@/lib/utils';
 
 interface AppointmentManageActionsProps {
@@ -57,7 +59,7 @@ export function AppointmentManageActions({
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date(appointment.start_time));
   const [timeSlot, setTimeSlot] = useState(() => slotFromStartTime(appointment.start_time));
 
-  const isPending = appointment.status === 'pending';
+  const awaitingConfirmation = isAwaitingConfirmation(appointment.status);
   const isBooked = appointment.status === 'booked';
   const canNotify = Boolean(appointment.patientEmail) && !appointment.error;
   const slotLabel = useMemo(
@@ -74,7 +76,7 @@ export function AppointmentManageActions({
     return generateCandidateSlots(opening.open, opening.close, durationMinutes);
   }, [selectedDate, durationMinutes]);
 
-  if (!isBooked && !isPending) return null;
+  if (!isBooked && !awaitingConfirmation) return null;
 
   async function handleConfirm() {
     if (!appointment.patientEmail) {
@@ -103,11 +105,7 @@ export function AppointmentManageActions({
         return;
       }
 
-      toast.success(
-        payload.email?.sent
-          ? 'Termin bestätigt — Patient/in per E-Mail informiert'
-          : 'Termin bestätigt — E-Mail simuliert (RESEND_API_KEY fehlt)',
-      );
+      toast.success(emailActionMessage('bestätigt', payload.email));
       router.refresh();
     });
   }
@@ -148,11 +146,7 @@ export function AppointmentManageActions({
 
       setCancelOpen(false);
       setCancelReason('');
-      toast.success(
-        payload.email?.sent
-          ? 'Termin storniert — Patient/in per E-Mail informiert'
-          : 'Termin storniert — E-Mail simuliert (RESEND_API_KEY fehlt)',
-      );
+      toast.success(emailActionMessage('storniert', payload.email));
       router.refresh();
     });
   }
@@ -187,11 +181,7 @@ export function AppointmentManageActions({
       }
 
       setRescheduleOpen(false);
-      toast.success(
-        payload.email?.sent
-          ? 'Termin verschoben — Patient/in per E-Mail informiert'
-          : 'Termin verschoben — E-Mail simuliert (RESEND_API_KEY fehlt)',
-      );
+      toast.success(emailActionMessage('verschoben', payload.email));
       router.refresh();
     });
   }
@@ -199,12 +189,12 @@ export function AppointmentManageActions({
   return (
     <>
       <div className={cn('flex flex-wrap gap-2', compact ? 'justify-end' : 'mt-3 pl-2')}>
-        {isPending && (
+        {awaitingConfirmation && (
           <Button
             type="button"
             size="sm"
             className="gap-1.5 shadow-sm shadow-primary/20"
-            disabled={pending || !canNotify}
+            disabled={pending}
             onClick={handleConfirm}
           >
             <CheckCircle2 className="size-3.5" />

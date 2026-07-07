@@ -64,9 +64,11 @@ export async function POST(request: Request, context: RouteContext) {
     );
   } catch (error) {
     console.error('[confirm] email failed:', error);
+    const message =
+      error instanceof Error ? error.message : 'E-Mail konnte nicht gesendet werden';
     return NextResponse.json(
       {
-        error: 'Termin bestätigt, aber E-Mail konnte nicht gesendet werden',
+        error: `Termin bestätigt, aber ${message}`,
         appointment: updated,
       },
       { status: 502 },

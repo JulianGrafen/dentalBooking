@@ -8,6 +8,7 @@ import { isSupabaseConfigured } from '@/lib/supabase-config';
 import { uiClasses } from '@/lib/ui-classes';
 import { SupabaseNotConfigured } from '@/components/auth/supabase-not-configured';
 import { AppointmentsTable } from '@/components/dashboard/appointments-table';
+import { PendingAppointmentsCard } from '@/components/dashboard/pending-appointments-card';
 import { BookingLinkCard } from '@/components/dashboard/booking-link-card';
 import { EmptyState } from '@/components/dashboard/empty-state';
 import { MetricCard } from '@/components/dashboard/metric-card';
@@ -35,7 +36,7 @@ export default async function DashboardPage() {
   const today = todayRange();
   const month = currentMonthRange();
 
-  const [practiceResult, appointmentsResult, recallResult, smartFillResult] =
+  const [practiceResult, appointmentsResult, pendingResult, recallResult, smartFillResult] =
     await Promise.all([
       Promise.resolve({ data: practice }),
       supabase
@@ -44,6 +45,13 @@ export default async function DashboardPage() {
         .eq('practice_id', practice.id)
         .gte('start_time', today.startIso)
         .lt('start_time', today.endIso)
+        .order('start_time'),
+      supabase
+        .from('appointments')
+        .select('id, encrypted_payload, start_time, end_time, status')
+        .eq('practice_id', practice.id)
+        .eq('status', 'pending')
+        .gte('start_time', new Date().toISOString())
         .order('start_time'),
       supabase
         .from('appointments')
@@ -62,6 +70,7 @@ export default async function DashboardPage() {
     ]);
 
   const appointments = appointmentsResult.data ?? [];
+  const pendingAppointments = pendingResult.data ?? [];
   const dateFormatter = new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' });
   const requestOrigin = await getRequestOrigin();
 
@@ -103,6 +112,8 @@ export default async function DashboardPage() {
             tourId="smart-fill-metric"
           />
         </section>
+
+        <PendingAppointmentsCard appointments={pendingAppointments} />
 
         <section data-tour="today-appointments">
           <Card className={uiClasses.glassCard}>

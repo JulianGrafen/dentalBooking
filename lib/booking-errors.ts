@@ -32,6 +32,9 @@ export function mapBookingError(message: string): string {
   if (normalized.includes('appointment too far in the future')) {
     return 'Termine können maximal 180 Tage im Voraus gebucht werden.';
   }
+  if (normalized.includes('invalid input value for enum') && normalized.includes('pending')) {
+    return 'Buchungssystem nicht aktuell — bitte Datenbank-Migrationen ausführen (npm run db:push).';
+  }
   if (normalized.includes('could not find the function') || normalized.includes('schema cache')) {
     return 'Buchungssystem nicht eingerichtet. Die Datenbank-Migrationen fehlen noch.';
   }
