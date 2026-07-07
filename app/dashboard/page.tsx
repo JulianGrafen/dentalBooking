@@ -1,18 +1,16 @@
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
-import { BellRing, CalendarDays, Shield, Users } from 'lucide-react';
+import { BellRing, CalendarDays } from 'lucide-react';
 import { currentMonthRange, todayRange } from '@/lib/date-ranges';
 import { getCurrentPracticeContext } from '@/lib/server/current-practice';
 import { getBookingUrl } from '@/lib/site';
+import { getRequestOrigin } from '@/lib/server/request-origin';
 import { isSupabaseConfigured } from '@/lib/supabase-config';
 import { uiClasses } from '@/lib/ui-classes';
 import { SupabaseNotConfigured } from '@/components/auth/supabase-not-configured';
 import { AppointmentsTable } from '@/components/dashboard/appointments-table';
 import { BookingLinkCard } from '@/components/dashboard/booking-link-card';
-import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { EmptyState } from '@/components/dashboard/empty-state';
 import { MetricCard } from '@/components/dashboard/metric-card';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -65,45 +63,26 @@ export default async function DashboardPage() {
 
   const appointments = appointmentsResult.data ?? [];
   const dateFormatter = new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' });
+  const requestOrigin = await getRequestOrigin();
 
   return (
-    <DashboardShell>
-      <main className={uiClasses.pageContainer}>
-        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-              Dashboard
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight">
-              {practiceResult.data?.name ?? 'Ihre Praxis'}
-            </h1>
-            <p className="text-muted-foreground">{dateFormatter.format(new Date())}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm" className="gap-2 bg-card/80">
-              <Link href="/dashboard/calendar">
-                <CalendarDays className="size-4" />
-                Kalender
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="gap-2 bg-card/80">
-              <Link href="/dashboard/security">
-                <Shield className="size-4" />
-                Sicherheit & 2FA
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="gap-2 bg-card/80">
-              <Link href="/dashboard/team">
-                <Users className="size-4" />
-                Team
-              </Link>
-            </Button>
-          </div>
+    <main className={uiClasses.pageContainer}>
+        <header className="mb-8 space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+            Dashboard
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {practiceResult.data?.name ?? 'Ihre Praxis'}
+          </h1>
+          <p className="text-muted-foreground">{dateFormatter.format(new Date())}</p>
         </header>
 
         {practiceResult.data && (
           <section className="mb-8">
-            <BookingLinkCard bookingUrl={getBookingUrl(practiceResult.data.slug)} />
+            <BookingLinkCard
+              bookingUrl={getBookingUrl(practiceResult.data.slug, requestOrigin)}
+              bookingReady={Boolean(practiceResult.data.public_key)}
+            />
           </section>
         )}
 
@@ -148,6 +127,5 @@ export default async function DashboardPage() {
           </Card>
         </section>
       </main>
-    </DashboardShell>
   );
 }

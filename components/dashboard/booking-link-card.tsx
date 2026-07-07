@@ -1,18 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { Copy, Link2, Shield } from 'lucide-react';
+import Link from 'next/link';
+import { Copy, ExternalLink, Link2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 interface BookingLinkCardProps {
   bookingUrl: string;
+  bookingReady?: boolean;
 }
 
 const COPY_FEEDBACK_MS = 2000;
 
-export function BookingLinkCard({ bookingUrl }: BookingLinkCardProps) {
+export function BookingLinkCard({ bookingUrl, bookingReady = true }: BookingLinkCardProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -56,6 +58,14 @@ export function BookingLinkCard({ bookingUrl }: BookingLinkCardProps) {
           </p>
         </div>
       </div>
+
+      {!bookingReady && (
+        <p className="relative mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900">
+          Buchung noch nicht aktiv: Der Verschlüsselungs-Schlüssel Ihrer Praxis fehlt.
+          Bitte registrieren Sie die Praxis erneut oder kontaktieren Sie den Support.
+        </p>
+      )}
+
       <div className="relative mt-4 flex flex-col gap-2 sm:flex-row">
         <Input
           readOnly
@@ -64,10 +74,18 @@ export function BookingLinkCard({ bookingUrl }: BookingLinkCardProps) {
           className="h-11 border-primary/20 bg-card/90 font-mono text-sm"
           aria-label="Öffentlicher Buchungslink"
         />
-        <Button onClick={handleCopy} className="h-11 shrink-0 gap-2 shadow-sm">
-          <Copy className="size-4" />
-          {copied ? 'Kopiert!' : 'Link kopieren'}
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          <Button asChild variant="outline" className="h-11 gap-2">
+            <Link href={bookingUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="size-4" />
+              Öffnen
+            </Link>
+          </Button>
+          <Button onClick={handleCopy} className="h-11 gap-2 shadow-sm">
+            <Copy className="size-4" />
+            {copied ? 'Kopiert!' : 'Kopieren'}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { bookingSchema, BOOKING_TIME_SLOTS } from '@/lib/booking-schema';
 import { encryptPatientData } from '@/lib/crypto';
+import { buildSlotTimes } from '@/lib/appointment-times';
 import { getTreatment, TREATMENT_TYPES, type TreatmentId } from '@/lib/treatments';
 import { StepIndicator } from '@/components/booking/step-indicator';
 import { uiClasses } from '@/lib/ui-classes';
@@ -23,6 +24,29 @@ const STEPS = ['Versicherung', 'Behandlung', 'Termin'] as const;
 
 const optionClass =
   'flex cursor-pointer items-center gap-3 rounded-xl border border-border/80 bg-card p-4 transition-all hover:border-primary/40 hover:bg-primary/5 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 has-[[data-state=checked]]:shadow-sm';
+
+function mapBookingError(message: string): string {
+  const normalized = message.toLowerCase();
+  if (normalized.includes('invalid booking target')) {
+    return 'Diese Buchungsseite ist nicht verfügbar. Bitte prüfen Sie den Link Ihrer Praxis.';
+  }
+  if (normalized.includes('appointment must be in the future')) {
+    return 'Der Termin muss mindestens 30 Minuten in der Zukunft liegen.';
+  }
+  if (normalized.includes('appointment slot is no longer available')) {
+    return 'Dieser Termin ist bereits belegt. Bitte wählen Sie eine andere Uhrzeit.';
+  }
+  if (normalized.includes('outside booking hours') || normalized.includes('not available on this day')) {
+    return 'Dieser Termin liegt außerhalb der buchbaren Zeiten (Mo–Sa, 09–16 Uhr).';
+  }
+  if (normalized.includes('too many recent booking attempts')) {
+    return 'Zu viele Buchungsversuche. Bitte warten Sie einige Minuten.';
+  }
+  if (normalized.includes('could not find the function') || normalized.includes('schema cache')) {
+    return 'Buchungssystem nicht eingerichtet. Die Datenbank-Migrationen fehlen noch.';
+  }
+  return 'Buchung fehlgeschlagen. Bitte versuchen Sie es erneut.';
+}
 
 interface BookingWizardProps {
   practiceSlug: string;
@@ -81,8 +105,11 @@ export function BookingWizard({ practiceSlug, practicePublicKey }: BookingWizard
 
     startTransition(async () => {
       const treatment = getTreatment(parsed.data.treatmentId);
-      const startTime = new Date(`${parsed.data.date}T${parsed.data.timeSlot}:00`);
-      const endTime = new Date(startTime.getTime() + treatment.durationMinutes * 60_000);
+      const { start_time, end_time } = buildSlotTimes(
+        parsed.data.date,
+        parsed.data.timeSlot,
+        treatment.durationMinutes,
+      );
 
       const encryptedPayload = encryptPatientData(
         {
@@ -99,13 +126,13 @@ export function BookingWizard({ practiceSlug, practicePublicKey }: BookingWizard
       const { error: insertError } = await supabase.rpc('create_public_booking', {
         booking_slug: practiceSlug,
         encrypted_payload: encryptedPayload,
-        requested_start_time: startTime.toISOString(),
-        requested_end_time: endTime.toISOString(),
+        requested_start_time: start_time,
+        requested_end_time: end_time,
       });
 
       if (insertError) {
         console.error('[booking] insert failed:', insertError.message);
-        setError('Buchung fehlgeschlagen. Bitte versuchen Sie es erneut.');
+        setError(mapBookingError(insertError.message));
         return;
       }
 

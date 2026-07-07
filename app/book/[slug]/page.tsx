@@ -9,26 +9,47 @@ interface BookingPageProps {
   params: Promise<{ slug: string }>;
 }
 
+function BookingSetupError({ message }: { message: string }) {
+  return (
+    <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-lg flex-col items-center justify-center px-4 py-12 text-center">
+      <h1 className="text-2xl font-semibold tracking-tight">Buchung vorübergehend nicht verfügbar</h1>
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{message}</p>
+    </main>
+  );
+}
+
 export default async function BookingPage({ params }: BookingPageProps) {
   const { slug } = await params;
 
   if (!isSupabaseConfigured()) {
     return (
-      <main className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center px-4 py-12 text-center">
-        <p className="text-muted-foreground">
-          Buchungsseite ist lokal nicht konfiguriert. Bitte{' '}
-          <code className="text-xs">npm run setup:local</code> ausführen.
-        </p>
-      </main>
+      <BookingSetupError message="Supabase ist nicht konfiguriert. Bitte npm run setup:local ausführen und den Dev-Server neu starten." />
     );
   }
 
   const supabase = createSupabasePublicClient();
-  const { data: practice } = await supabase
-    .rpc('get_public_booking_practice', { booking_slug: slug })
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('get_public_booking_practice', {
+    booking_slug: slug,
+  });
 
-  if (!practice) notFound();
+  if (error) {
+    const isMissingRpc =
+      error.message.includes('Could not find the function') ||
+      error.message.includes('schema cache');
+
+    return (
+      <BookingSetupError
+        message={
+          isMissingRpc
+            ? 'Die Buchungs-API ist in der Datenbank noch nicht eingerichtet. Bitte npm run db:push ausführen.'
+            : `Technischer Fehler beim Laden der Praxis: ${error.message}`
+        }
+      />
+    );
+  }
+
+  const practice = Array.isArray(data) ? data[0] : data;
+  if (!practice?.public_key) notFound();
 
   return (
     <main className={`${uiClasses.pageContainer} max-w-xl`}>

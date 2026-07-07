@@ -45,19 +45,32 @@ async function main() {
 
   const privateKey = extractPrivateKey(readFileSync(RECOVERY_PATH, 'utf8'));
 
-  const practiceRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/practices?slug=eq.zahnarztpraxis-dr-mueller&select=id,public_key`,
-    { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } },
-  );
-  const [practice] = await practiceRes.json();
+  const practiceRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_public_booking_practice`, {
+    method: 'POST',
+    headers: {
+      apikey: ANON_KEY,
+      Authorization: `Bearer ${ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ booking_slug: 'zahnarztpraxis-dr-mueller' }),
+  });
+  const practiceRows = await practiceRes.json();
+  const practice = Array.isArray(practiceRows) ? practiceRows[0] : practiceRows;
   if (!practice?.public_key) throw new Error('Demo-Praxis ohne public_key');
+
+  const practiceIdRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/practices?slug=eq.zahnarztpraxis-dr-mueller&select=id`,
+    { headers: ADMIN },
+  );
+  const [practiceRow] = await practiceIdRes.json();
+  if (!practiceRow?.id) throw new Error('Demo-Praxis nicht gefunden');
 
   const today = new Date();
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
   const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
 
   const apptRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/appointments?practice_id=eq.${practice.id}&start_time=gte.${start}&start_time=lt.${end}&select=encrypted_payload`,
+    `${SUPABASE_URL}/rest/v1/appointments?practice_id=eq.${practiceRow.id}&start_time=gte.${start}&start_time=lt.${end}&select=encrypted_payload`,
     { headers: ADMIN },
   );
   const appointments = await apptRes.json();

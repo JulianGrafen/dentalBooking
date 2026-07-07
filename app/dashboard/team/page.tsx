@@ -1,14 +1,11 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { CalendarDays, Shield, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { getCurrentPracticeContext } from '@/lib/server/current-practice';
 import { isSupabaseConfigured } from '@/lib/supabase-config';
 import { uiClasses } from '@/lib/ui-classes';
 import { SupabaseNotConfigured } from '@/components/auth/supabase-not-configured';
-import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { TeamInvitePanel } from '@/components/team/team-invite-panel';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -54,32 +51,15 @@ export default async function TeamPage() {
   const canInvite = role === 'owner';
 
   return (
-    <DashboardShell>
-      <main className={`${uiClasses.pageContainer} max-w-4xl`}>
-        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-              Team
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight">{practice.name}</h1>
-            <p className="text-muted-foreground">
-              Mehrere Nutzer können denselben Kalender verwalten.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm" className="gap-2 bg-card/80">
-              <Link href="/dashboard/calendar">
-                <CalendarDays className="size-4" />
-                Kalender
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="gap-2 bg-card/80">
-              <Link href="/dashboard/security">
-                <Shield className="size-4" />
-                Sicherheit
-              </Link>
-            </Button>
-          </div>
+    <main className={`${uiClasses.pageContainer} max-w-4xl`}>
+        <header className="mb-8 space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+            Team
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">{practice.name}</h1>
+          <p className="text-muted-foreground">
+            Mehrere Nutzer können denselben Kalender verwalten.
+          </p>
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
@@ -158,6 +138,5 @@ export default async function TeamPage() {
           </section>
         )}
       </main>
-    </DashboardShell>
   );
 }

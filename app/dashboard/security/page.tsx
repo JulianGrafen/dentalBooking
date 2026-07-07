@@ -1,12 +1,9 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/utils/supabase/server';
 import { isSupabaseConfigured } from '@/lib/supabase-config';
 import { SupabaseNotConfigured } from '@/components/auth/supabase-not-configured';
-import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { OnboardingRestartButton } from '@/components/onboarding/onboarding-restart-button';
 import { TwoFactorSettings } from '@/components/settings/two-factor-settings';
-import { Button } from '@/components/ui/button';
 
 export default async function SecurityPage() {
   if (!isSupabaseConfigured()) {
@@ -24,13 +21,9 @@ export default async function SecurityPage() {
   if (!user) redirect('/login');
 
   return (
-    <DashboardShell>
-      <main className="mx-auto max-w-2xl space-y-6 px-4 py-10">
+    <main className="mx-auto max-w-2xl space-y-6 px-4 py-10">
         <header className="space-y-1">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <Button asChild variant="ghost" size="sm" className="-ml-2">
-              <Link href="/dashboard">← Dashboard</Link>
-            </Button>
+          <div className="mb-2">
             <OnboardingRestartButton />
           </div>
           <p className="text-sm font-medium text-primary">teeth.al</p>
@@ -44,6 +37,5 @@ export default async function SecurityPage() {
           <TwoFactorSettings />
         </div>
       </main>
-    </DashboardShell>
   );
 }

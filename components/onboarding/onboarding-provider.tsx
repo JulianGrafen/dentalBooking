@@ -30,7 +30,7 @@ interface OnboardingContextValue {
 
 const OnboardingContext = createContext<OnboardingContextValue | null>(null);
 
-function waitForElement(selector: string, timeoutMs = 5000): Promise<HTMLElement | null> {
+function waitForElement(selector: string, timeoutMs = 10000): Promise<HTMLElement | null> {
   return new Promise((resolve) => {
     const started = Date.now();
 
@@ -57,6 +57,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [targetReady, setTargetReady] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasAutoStartedRef = useRef(false);
@@ -93,6 +94,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       }
       setStepIndex(index);
       setTargetRect(null);
+      setTargetReady(false);
     },
     [finishTour],
   );
@@ -131,6 +133,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       if (pathname !== step!.route) {
         setNavigating(true);
         setTargetRect(null);
+        setTargetReady(false);
         router.push(step!.route);
         return;
       }
@@ -139,6 +142,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
 
       if (!step!.target) {
         setTargetRect(null);
+        setTargetReady(true);
         return;
       }
 
@@ -153,6 +157,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setTargetRect(null);
+      }
+
+      if (!cancelled) {
+        setTargetReady(true);
       }
     }
 
@@ -180,9 +188,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     };
   }, [active, step]);
 
-  // Auto-advance timer
+  // Auto-advance timer — wait until route + target are ready
   useEffect(() => {
-    if (!active || !step || navigating) return;
+    if (!active || !step || navigating || !targetReady) return;
     if (pathname !== step.route) return;
 
     const delay = step.autoDelayMs ?? DEFAULT_STEP_DELAY_MS;
@@ -195,7 +203,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     return () => {
       if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
     };
-  }, [active, step, navigating, pathname, advanceStep]);
+  }, [active, step, navigating, targetReady, pathname, advanceStep]);
 
   const contextValue = useMemo(
     () => ({ active, startTour, skipTour }),
@@ -211,7 +219,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           stepIndex={stepIndex}
           totalSteps={totalSteps}
           targetRect={targetRect}
-          navigating={navigating}
+          navigating={navigating || !targetReady}
           autoDelayMs={step.autoDelayMs ?? DEFAULT_STEP_DELAY_MS}
           onSkip={skipTour}
         />

@@ -41,6 +41,7 @@ export default function RegisterPage() {
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [pendingPrivateKey, setPendingPrivateKey] = useState<string | null>(null);
   const [recoveryDownloaded, setRecoveryDownloaded] = useState(false);
+  const [recoveryConfirmed, setRecoveryConfirmed] = useState(false);
   const [registeredPracticeName, setRegisteredPracticeName] = useState('');
 
   if (!isSupabaseConfigured()) {
@@ -105,6 +106,7 @@ export default function RegisterPage() {
       setPendingPrivateKey(keyPair.privateKey);
       setRegisteredPracticeName(parsed.data.practiceName);
       setRecoveryDownloaded(false);
+      setRecoveryConfirmed(false);
       setRecoveryOpen(true);
     });
   }
@@ -205,6 +207,20 @@ export default function RegisterPage() {
             Recovery-Datei, die Sie selbst speichern.
           </div>
 
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/60 p-3 text-sm leading-relaxed">
+            <input
+              type="checkbox"
+              checked={recoveryConfirmed}
+              onChange={(event) => setRecoveryConfirmed(event.target.checked)}
+              className="mt-0.5 size-4 shrink-0 accent-primary"
+            />
+            <span>
+              Ich habe den Recovery-Key heruntergeladen und an einem sicheren Ort
+              gespeichert. Mir ist bekannt, dass verlorene Keys nicht
+              wiederhergestellt werden können.
+            </span>
+          </label>
+
           <DialogFooter className="flex-col gap-2 sm:flex-col">
             <Button
               type="button"
@@ -217,7 +233,7 @@ export default function RegisterPage() {
             <Button
               type="button"
               className="w-full"
-              disabled={!recoveryDownloaded}
+              disabled={!recoveryDownloaded || !recoveryConfirmed}
               onClick={handleRecoveryComplete}
             >
               Weiter zum Dashboard

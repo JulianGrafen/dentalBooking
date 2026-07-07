@@ -7,6 +7,7 @@ interface CurrentPractice {
   id: string;
   name: string;
   slug: string;
+  public_key: string | null;
 }
 
 export interface CurrentPracticeContext {
@@ -57,7 +58,7 @@ export async function getCurrentPracticeContext(): Promise<CurrentPracticeContex
 
   const { data: practice } = await supabase
     .from('practices')
-    .select('id, name, slug')
+    .select('id, name, slug, public_key')
     .eq('id', membership.practice_id)
     .single();
 

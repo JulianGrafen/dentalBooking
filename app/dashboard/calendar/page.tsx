@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
-import { CalendarDays, LayoutDashboard, Shield, Users } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import {
   formatMonthParam,
   monthRangeFor,
@@ -12,8 +11,6 @@ import { uiClasses } from '@/lib/ui-classes';
 import { SupabaseNotConfigured } from '@/components/auth/supabase-not-configured';
 import { AppointmentsCalendar } from '@/components/dashboard/appointments-calendar';
 import { CalendarMonthNav } from '@/components/dashboard/calendar-month-nav';
-import { DashboardShell } from '@/components/dashboard/dashboard-shell';
-import { Button } from '@/components/ui/button';
 
 interface CalendarPageProps {
   searchParams: Promise<{ month?: string }>;
@@ -51,40 +48,17 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const appointments = appointmentsResult.data ?? [];
 
   return (
-    <DashboardShell>
-      <main className={`${uiClasses.pageContainer} max-w-6xl`}>
-        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-              Kalender
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight">
-              {practice.name}
-            </h1>
-            <p className="text-muted-foreground">
-              Monatsübersicht — Ende-zu-Ende entschlüsselt im Browser
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm" className="gap-2 bg-card/80">
-              <Link href="/dashboard">
-                <LayoutDashboard className="size-4" />
-                Dashboard
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="gap-2 bg-card/80">
-              <Link href="/dashboard/security">
-                <Shield className="size-4" />
-                Sicherheit
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="gap-2 bg-card/80">
-              <Link href="/dashboard/team">
-                <Users className="size-4" />
-                Team
-              </Link>
-            </Button>
-          </div>
+    <main className={`${uiClasses.pageContainer} max-w-6xl`}>
+        <header className="mb-8 space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+            Kalender
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {practice.name}
+          </h1>
+          <p className="text-muted-foreground">
+            Monatsübersicht — Ende-zu-Ende entschlüsselt im Browser
+          </p>
         </header>
 
         <section className={`${uiClasses.glassCard} p-6 sm:p-8`} data-tour="calendar-overview">
@@ -101,6 +75,5 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           <AppointmentsCalendar appointments={appointments} month={monthDate} />
         </section>
       </main>
-    </DashboardShell>
   );
 }
