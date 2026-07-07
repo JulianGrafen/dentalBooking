@@ -54,11 +54,13 @@ describe('buildConfirmationEmail', () => {
       treatment: 'Prophylaxe',
       startTime: '2026-07-10T09:00:00.000Z',
       endTime: '2026-07-10T10:00:00.000Z',
+      cancellationUrl: 'https://teethal.de/termin/absagen?token=test-token',
     });
 
     expect(email.subject).toContain('Terminbestätigung');
     expect(email.body).toContain('bestätigt');
     expect(email.body).toContain('Prophylaxe');
+    expect(email.body).toContain('https://teethal.de/termin/absagen?token=test-token');
   });
 });
 

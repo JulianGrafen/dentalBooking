@@ -11,6 +11,10 @@ export interface AppointmentNotificationContext {
   reason?: string;
 }
 
+export interface ConfirmationNotificationContext extends AppointmentNotificationContext {
+  cancellationUrl: string;
+}
+
 export interface RescheduleNotificationContext extends AppointmentNotificationContext {
   previousStartTime: string;
   previousEndTime: string;
@@ -59,7 +63,7 @@ export function buildRescheduleEmail(
 }
 
 export function buildConfirmationEmail(
-  ctx: AppointmentNotificationContext,
+  ctx: ConfirmationNotificationContext,
 ): OutboundEmail {
   const slot = formatAppointmentTimeRange(ctx.startTime, ctx.endTime);
 
@@ -71,7 +75,10 @@ export function buildConfirmationEmail(
       `Ihr Termin wurde von ${ctx.practiceName} bestätigt:\n\n` +
       `Behandlung: ${ctx.treatment}\n` +
       `Termin: ${slot}\n\n` +
-      `Bitte erscheinen Sie pünktlich zu Ihrem Termin. Bei Fragen oder falls Sie den Termin nicht wahrnehmen können, antworten Sie bitte auf diese E-Mail.\n\n` +
+      `Bitte erscheinen Sie pünktlich zu Ihrem Termin.\n\n` +
+      `Falls Sie den Termin nicht wahrnehmen können, können Sie ihn hier absagen:\n` +
+      `${ctx.cancellationUrl}\n\n` +
+      `Der Termin wird erst abgesagt, nachdem Sie die Absage auf der Seite bestätigt haben.\n\n` +
       `Mit freundlichen Grüßen\n` +
       `${ctx.practiceName}`,
   };

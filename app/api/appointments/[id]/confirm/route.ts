@@ -3,6 +3,11 @@ import { confirmAppointmentSchema } from '@/lib/appointment-manage-schema';
 import { buildConfirmationEmail } from '@/lib/appointment-notifications';
 import { sendEmail, type SendEmailResult } from '@/lib/email/send-email';
 import { requireOwnedAppointment } from '@/lib/server/appointment-auth';
+import {
+  buildPublicCancelUrl,
+  createPublicCancelToken,
+  hashPublicCancelToken,
+} from '@/lib/server/public-cancel-token';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -39,9 +44,15 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
+  const cancelToken = createPublicCancelToken();
+  const requestOrigin = new URL(request.url).origin;
+
   const { data: updated, error: updateError } = await auth.supabase
     .from('appointments')
-    .update({ status: 'booked' })
+    .update({
+      status: 'booked',
+      public_cancel_token_hash: hashPublicCancelToken(cancelToken),
+    })
     .eq('id', id)
     .select('id, start_time, end_time, status')
     .single();
@@ -60,6 +71,7 @@ export async function POST(request: Request, context: RouteContext) {
         treatment: parsed.data.treatment,
         startTime: auth.appointment.start_time,
         endTime: auth.appointment.end_time,
+        cancellationUrl: buildPublicCancelUrl(requestOrigin, cancelToken),
       }),
     );
   } catch (error) {

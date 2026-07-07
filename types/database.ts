@@ -215,6 +215,8 @@ export type Database = {
           end_time: string;
           status: Database['public']['Enums']['appointment_status'];
           source: Database['public']['Enums']['appointment_source'];
+          public_cancel_token_hash: string | null;
+          public_cancelled_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -225,6 +227,8 @@ export type Database = {
           end_time: string;
           status?: Database['public']['Enums']['appointment_status'];
           source?: Database['public']['Enums']['appointment_source'];
+          public_cancel_token_hash?: string | null;
+          public_cancelled_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -235,6 +239,8 @@ export type Database = {
           end_time?: string;
           status?: Database['public']['Enums']['appointment_status'];
           source?: Database['public']['Enums']['appointment_source'];
+          public_cancel_token_hash?: string | null;
+          public_cancelled_at?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -274,6 +280,15 @@ export type Database = {
         };
         Returns: string;
       };
+      cancel_public_appointment: {
+        Args: { cancel_token_hash: string };
+        Returns: {
+          practice_name: string;
+          start_time: string;
+          end_time: string;
+          status: Database['public']['Enums']['appointment_status'];
+        }[];
+      };
       get_public_booking_practice: {
         Args: { booking_slug: string };
         Returns: {
@@ -294,6 +309,15 @@ export type Database = {
         Returns: {
           start_time: string;
           end_time: string;
+        }[];
+      };
+      get_public_cancel_appointment: {
+        Args: { cancel_token_hash: string };
+        Returns: {
+          practice_name: string;
+          start_time: string;
+          end_time: string;
+          status: Database['public']['Enums']['appointment_status'];
         }[];
       };
       is_practice_member: {
