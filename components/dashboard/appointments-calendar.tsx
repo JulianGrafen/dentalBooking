@@ -14,6 +14,11 @@ import {
   type EncryptedAppointment,
 } from '@/lib/appointment-decrypt';
 import { dateKey, formatMonthParam, isSameDay, startOfDay } from '@/lib/date-ranges';
+import {
+  appointmentStatusBadgeVariant,
+  appointmentStatusLabel,
+  isActiveAppointmentStatus,
+} from '@/lib/appointment-status';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/dashboard/empty-state';
 import { AppointmentManageActions } from '@/components/dashboard/appointment-manage-actions';
@@ -55,9 +60,13 @@ function AppointmentDayButton({
   dayAppointments: Map<string, DecryptedAppointment[]>;
 }) {
   const count = dayAppointments.get(dateKey(props.day.date))?.length ?? 0;
-  const bookedCount =
-    dayAppointments.get(dateKey(props.day.date))?.filter((a) => a.status === 'booked').length ?? 0;
-  const hasCancelled = count > bookedCount;
+  const activeCount =
+    dayAppointments.get(dateKey(props.day.date))?.filter((a) => isActiveAppointmentStatus(a.status))
+      .length ?? 0;
+  const pendingCount =
+    dayAppointments.get(dateKey(props.day.date))?.filter((a) => a.status === 'pending').length ?? 0;
+  const bookedCount = activeCount - pendingCount;
+  const hasCancelled = count > activeCount;
 
   return (
     <Button
@@ -92,6 +101,9 @@ function AppointmentDayButton({
           {bookedCount > 0 && (
             <span className="size-1.5 rounded-full bg-primary data-[selected-single=true]:bg-primary-foreground" />
           )}
+          {pendingCount > 0 && (
+            <span className="size-1.5 rounded-full bg-amber-500 data-[selected-single=true]:bg-primary-foreground" />
+          )}
           {hasCancelled && <span className="size-1.5 rounded-full bg-destructive/70" />}
           {count > 1 && (
             <span className="text-[10px] font-medium tabular-nums opacity-80">{count}</span>
@@ -110,19 +122,20 @@ function AppointmentCard({
   showDate?: boolean;
 }) {
   const cancelled = appointment.status === 'cancelled';
+  const pending = appointment.status === 'pending';
 
   return (
     <article
       className={cn(
         'relative overflow-hidden rounded-xl border bg-card/90 p-4 shadow-sm transition-shadow hover:shadow-md',
-        cancelled ? 'border-destructive/25 opacity-75' : 'border-border/60',
+        cancelled ? 'border-destructive/25 opacity-75' : pending ? 'border-amber-500/30' : 'border-border/60',
       )}
     >
       <div
         aria-hidden
         className={cn(
           'absolute inset-y-0 left-0 w-1',
-          cancelled ? 'bg-destructive/60' : 'bg-primary',
+          cancelled ? 'bg-destructive/60' : pending ? 'bg-amber-500' : 'bg-primary',
         )}
       />
       <div className="flex flex-wrap items-start justify-between gap-2 pl-2">
@@ -152,8 +165,8 @@ function AppointmentCard({
           </p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <Badge variant={cancelled ? 'destructive' : 'default'}>
-            {cancelled ? 'Storniert' : 'Gebucht'}
+          <Badge variant={appointmentStatusBadgeVariant(appointment.status)}>
+            {appointmentStatusLabel(appointment.status)}
           </Badge>
           {!appointment.error && (
             <span className="text-xs text-muted-foreground">{appointment.insuranceLabel}</span>
@@ -202,7 +215,7 @@ export function AppointmentsCalendar({ appointments, month }: AppointmentsCalend
   const daysWithAppointments = useMemo(
     () =>
       Array.from(byDay.entries())
-        .filter(([, items]) => items.some((item) => item.status === 'booked'))
+        .filter(([, items]) => items.some((item) => isActiveAppointmentStatus(item.status)))
         .map(([key]) => {
           const [y, m, d] = key.split('-').map(Number);
           return new Date(y, m - 1, d);
@@ -216,7 +229,7 @@ export function AppointmentsCalendar({ appointments, month }: AppointmentsCalend
   const upcoming = useMemo(
     () =>
       decrypted
-        .filter((a) => a.status === 'booked' && new Date(a.start_time) >= today)
+        .filter((a) => isActiveAppointmentStatus(a.status) && new Date(a.start_time) >= today)
         .sort((a, b) => a.start_time.localeCompare(b.start_time)),
     [decrypted, today],
   );
@@ -233,7 +246,7 @@ export function AppointmentsCalendar({ appointments, month }: AppointmentsCalend
     let monthCount = 0;
 
     for (const item of decrypted) {
-      if (item.status !== 'booked') continue;
+      if (!isActiveAppointmentStatus(item.status)) continue;
       const start = new Date(item.start_time);
       const key = dateKey(start);
       if (key === todayKey) todayCount++;
@@ -289,7 +302,11 @@ export function AppointmentsCalendar({ appointments, month }: AppointmentsCalend
           <p className="mt-3 flex items-center justify-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span className="size-2 rounded-full bg-primary" />
-              Gebucht
+              Bestätigt
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-amber-500" />
+              Anfrage
             </span>
             <span className="flex items-center gap-1.5">
               <span className="size-2 rounded-full bg-destructive/70" />

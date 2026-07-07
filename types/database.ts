@@ -307,7 +307,7 @@ export type Database = {
     };
     Enums: {
       insurance_type: 'kasse' | 'privat';
-      appointment_status: 'booked' | 'cancelled';
+      appointment_status: 'booked' | 'cancelled' | 'pending';
       appointment_source: 'manual' | 'online' | 'recall' | 'smart_fill';
       practice_role: 'owner' | 'calendar_manager';
     };

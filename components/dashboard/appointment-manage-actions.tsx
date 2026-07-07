@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { de } from 'react-day-picker/locale';
-import { CalendarClock, CalendarX2 } from 'lucide-react';
+import { CalendarClock, CalendarX2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
@@ -57,6 +57,7 @@ export function AppointmentManageActions({
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date(appointment.start_time));
   const [timeSlot, setTimeSlot] = useState(() => slotFromStartTime(appointment.start_time));
 
+  const isPending = appointment.status === 'pending';
   const isBooked = appointment.status === 'booked';
   const canNotify = Boolean(appointment.patientEmail) && !appointment.error;
   const slotLabel = useMemo(
@@ -73,7 +74,43 @@ export function AppointmentManageActions({
     return generateCandidateSlots(opening.open, opening.close, durationMinutes);
   }, [selectedDate, durationMinutes]);
 
-  if (!isBooked) return null;
+  if (!isBooked && !isPending) return null;
+
+  async function handleConfirm() {
+    if (!appointment.patientEmail) {
+      toast.error('Keine E-Mail-Adresse — Benachrichtigung nicht möglich');
+      return;
+    }
+
+    startTransition(async () => {
+      const response = await fetch(`/api/appointments/${appointment.id}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientEmail: appointment.patientEmail,
+          patientName: appointment.patientName,
+          treatment: appointment.treatment,
+        }),
+      });
+
+      const payload = (await response.json()) as {
+        error?: string;
+        email?: { sent: boolean; mode: string };
+      };
+
+      if (!response.ok) {
+        toast.error(payload.error ?? 'Bestätigung fehlgeschlagen');
+        return;
+      }
+
+      toast.success(
+        payload.email?.sent
+          ? 'Termin bestätigt — Patient/in per E-Mail informiert'
+          : 'Termin bestätigt — E-Mail simuliert (RESEND_API_KEY fehlt)',
+      );
+      router.refresh();
+    });
+  }
 
   async function handleCancel() {
     if (!appointment.patientEmail) {
@@ -162,6 +199,18 @@ export function AppointmentManageActions({
   return (
     <>
       <div className={cn('flex flex-wrap gap-2', compact ? 'justify-end' : 'mt-3 pl-2')}>
+        {isPending && (
+          <Button
+            type="button"
+            size="sm"
+            className="gap-1.5 shadow-sm shadow-primary/20"
+            disabled={pending || !canNotify}
+            onClick={handleConfirm}
+          >
+            <CheckCircle2 className="size-3.5" />
+            Bestätigen
+          </Button>
+        )}
         <Button
           type="button"
           variant="outline"

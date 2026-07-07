@@ -6,7 +6,7 @@ export interface EncryptedAppointment {
   encrypted_payload: string;
   start_time: string;
   end_time: string;
-  status: 'booked' | 'cancelled';
+  status: 'booked' | 'cancelled' | 'pending';
 }
 
 export interface DecryptedAppointment {
@@ -17,7 +17,7 @@ export interface DecryptedAppointment {
   insuranceLabel: string;
   start_time: string;
   end_time: string;
-  status: 'booked' | 'cancelled';
+  status: 'booked' | 'cancelled' | 'pending';
   error?: string;
 }
 

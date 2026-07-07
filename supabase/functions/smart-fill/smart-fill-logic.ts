@@ -15,7 +15,7 @@ export interface AppointmentRecord {
   practice_id: string;
   start_time: string;
   end_time: string;
-  status: 'booked' | 'cancelled';
+  status: 'booked' | 'cancelled' | 'pending';
 }
 
 export interface WaitlistedPatient {
@@ -54,7 +54,7 @@ export function isNewCancellation(
   record: Pick<AppointmentRecord, 'status'>,
   oldRecord: Pick<AppointmentRecord, 'status'> | null,
 ): boolean {
-  return record.status === 'cancelled' && oldRecord?.status !== 'cancelled';
+  return record.status === 'cancelled' && oldRecord?.status === 'booked';
 }
 
 export function buildWaitlistOffer(

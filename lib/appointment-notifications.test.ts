@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildCancellationEmail,
+  buildConfirmationEmail,
   buildRescheduleEmail,
 } from '@/lib/appointment-notifications';
 import {
@@ -41,6 +42,23 @@ describe('buildCancellationEmail', () => {
     });
 
     expect(email.body).toContain('Grund: Behandler/in ist krank');
+  });
+});
+
+describe('buildConfirmationEmail', () => {
+  it('includes confirmed slot details', () => {
+    const email = buildConfirmationEmail({
+      patientName: 'Anna Müller',
+      patientEmail: 'anna@test.de',
+      practiceName: 'Dr. Schmidt',
+      treatment: 'Prophylaxe',
+      startTime: '2026-07-10T09:00:00.000Z',
+      endTime: '2026-07-10T10:00:00.000Z',
+    });
+
+    expect(email.subject).toContain('Terminbestätigung');
+    expect(email.body).toContain('bestätigt');
+    expect(email.body).toContain('Prophylaxe');
   });
 });
 

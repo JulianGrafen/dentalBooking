@@ -27,10 +27,11 @@ function hoursFromNow(hours: number, from = BASE_NOW): string {
 }
 
 describe('isNewCancellation', () => {
-  it('returns true only on transition into cancelled', () => {
+  it('returns true only when a confirmed appointment is cancelled', () => {
     expect(isNewCancellation({ status: 'cancelled' }, { status: 'booked' })).toBe(true);
     expect(isNewCancellation({ status: 'cancelled' }, { status: 'cancelled' })).toBe(false);
-    expect(isNewCancellation({ status: 'cancelled' }, null)).toBe(true);
+    expect(isNewCancellation({ status: 'cancelled' }, { status: 'pending' })).toBe(false);
+    expect(isNewCancellation({ status: 'cancelled' }, null)).toBe(false);
     expect(isNewCancellation({ status: 'booked' }, { status: 'booked' })).toBe(false);
   });
 });

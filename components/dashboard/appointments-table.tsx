@@ -3,6 +3,10 @@
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
+  appointmentStatusBadgeVariant,
+  appointmentStatusLabel,
+} from '@/lib/appointment-status';
+import {
   Table,
   TableBody,
   TableCell,
@@ -58,8 +62,8 @@ export function AppointmentsTable({ appointments }: AppointmentsTableProps) {
               <TableCell>{row.treatment}</TableCell>
               <TableCell>{row.insuranceLabel}</TableCell>
               <TableCell>
-                <Badge variant={row.status === 'cancelled' ? 'destructive' : 'default'}>
-                  {row.status === 'cancelled' ? 'Storniert' : 'Gebucht'}
+                <Badge variant={appointmentStatusBadgeVariant(row.status)}>
+                  {appointmentStatusLabel(row.status)}
                 </Badge>
               </TableCell>
               <TableCell className="text-right">

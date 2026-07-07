@@ -223,8 +223,8 @@ export function BookingWizard({
         </div>
         <h2 className="text-xl font-semibold">Termin angefragt</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Vielen Dank, {patientName}! Ihre verschlüsselte Buchung ist eingegangen —
-          die Praxis meldet sich zur Bestätigung bei Ihnen.
+          Vielen Dank, {patientName}! Ihre Buchungsanfrage ist eingegangen — die Praxis prüft
+          den Termin und sendet Ihnen nach Bestätigung eine E-Mail.
         </p>
       </div>
     );

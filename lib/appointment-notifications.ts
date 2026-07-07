@@ -57,3 +57,22 @@ export function buildRescheduleEmail(
       `${ctx.practiceName}`,
   };
 }
+
+export function buildConfirmationEmail(
+  ctx: AppointmentNotificationContext,
+): OutboundEmail {
+  const slot = formatAppointmentTimeRange(ctx.startTime, ctx.endTime);
+
+  return {
+    to: ctx.patientEmail,
+    subject: `Terminbestätigung — ${ctx.practiceName}`,
+    body:
+      `Guten Tag ${ctx.patientName},\n\n` +
+      `Ihr Termin wurde von ${ctx.practiceName} bestätigt:\n\n` +
+      `Behandlung: ${ctx.treatment}\n` +
+      `Termin: ${slot}\n\n` +
+      `Bitte erscheinen Sie pünktlich zu Ihrem Termin. Bei Fragen oder falls Sie den Termin nicht wahrnehmen können, antworten Sie bitte auf diese E-Mail.\n\n` +
+      `Mit freundlichen Grüßen\n` +
+      `${ctx.practiceName}`,
+  };
+}

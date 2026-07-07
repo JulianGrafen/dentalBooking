@@ -20,5 +20,8 @@ export const rescheduleAppointmentSchema = patientNotificationSchema.extend({
   timeSlot: timeSlotSchema,
 });
 
+export const confirmAppointmentSchema = patientNotificationSchema;
+
 export type CancelAppointmentInput = z.infer<typeof cancelAppointmentSchema>;
 export type RescheduleAppointmentInput = z.infer<typeof rescheduleAppointmentSchema>;
+export type ConfirmAppointmentInput = z.infer<typeof confirmAppointmentSchema>;

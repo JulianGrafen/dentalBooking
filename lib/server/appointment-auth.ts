@@ -5,7 +5,7 @@ interface OwnedAppointment {
   practice_id: string;
   start_time: string;
   end_time: string;
-  status: 'booked' | 'cancelled';
+  status: 'booked' | 'cancelled' | 'pending';
 }
 
 type AuthSuccess = {
