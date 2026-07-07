@@ -1,11 +1,13 @@
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { needsMfaVerification } from '@/lib/mfa';
-import { hasPrivateKey } from '@/lib/practice-key';
 
 /**
- * Post-authentication navigation: MFA gate → E2EE unlock gate → dashboard.
+ * Post-authentication navigation: MFA gate → dashboard.
  * Single entry point so login, register and MFA verify stay in sync.
+ *
+ * The E2EE recovery key is no longer a login requirement. It is only needed
+ * when this browser must restore access to encrypted patient data.
  */
 export async function redirectAfterAuth(
   supabase: SupabaseClient,
@@ -19,6 +21,6 @@ export async function redirectAfterAuth(
     return;
   }
 
-  router.push(hasPrivateKey() ? '/dashboard' : '/unlock');
+  router.push('/dashboard');
   router.refresh();
 }

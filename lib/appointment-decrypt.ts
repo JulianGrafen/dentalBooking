@@ -7,6 +7,7 @@ export interface EncryptedAppointment {
   start_time: string;
   end_time: string;
   status: 'booked' | 'cancelled' | 'pending';
+  cancelled_at?: string | null;
 }
 
 export interface DecryptedAppointment {
@@ -18,6 +19,7 @@ export interface DecryptedAppointment {
   start_time: string;
   end_time: string;
   status: 'booked' | 'cancelled' | 'pending';
+  cancelled_at?: string | null;
   error?: string;
 }
 
@@ -39,6 +41,7 @@ export function decryptAppointments(
         start_time: appointment.start_time,
         end_time: appointment.end_time,
         status: appointment.status,
+        cancelled_at: appointment.cancelled_at ?? null,
       };
     } catch {
       return {
@@ -50,6 +53,7 @@ export function decryptAppointments(
         start_time: appointment.start_time,
         end_time: appointment.end_time,
         status: appointment.status,
+        cancelled_at: appointment.cancelled_at ?? null,
         error: 'Entschlüsselung fehlgeschlagen',
       };
     }

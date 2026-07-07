@@ -37,7 +37,10 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { data: updated, error: updateError } = await auth.supabase
     .from('appointments')
-    .update({ status: 'cancelled' })
+    .update({
+      status: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+    })
     .eq('id', id)
     .select('id, start_time, end_time, status')
     .single();

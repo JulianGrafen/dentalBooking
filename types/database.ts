@@ -215,6 +215,7 @@ export type Database = {
           end_time: string;
           status: Database['public']['Enums']['appointment_status'];
           source: Database['public']['Enums']['appointment_source'];
+          cancelled_at: string | null;
           public_cancel_token_hash: string | null;
           public_cancelled_at: string | null;
           created_at: string;
@@ -227,6 +228,7 @@ export type Database = {
           end_time: string;
           status?: Database['public']['Enums']['appointment_status'];
           source?: Database['public']['Enums']['appointment_source'];
+          cancelled_at?: string | null;
           public_cancel_token_hash?: string | null;
           public_cancelled_at?: string | null;
           created_at?: string;
@@ -239,6 +241,7 @@ export type Database = {
           end_time?: string;
           status?: Database['public']['Enums']['appointment_status'];
           source?: Database['public']['Enums']['appointment_source'];
+          cancelled_at?: string | null;
           public_cancel_token_hash?: string | null;
           public_cancelled_at?: string | null;
           created_at?: string;

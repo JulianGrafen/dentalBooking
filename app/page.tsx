@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   FileCheck2,
+  Flag,
   KeyRound,
   Lock,
   Mail,
@@ -30,7 +31,7 @@ const trustBadges = [
   'DSGVO-konform',
   'Zero-Knowledge E2EE',
   '2FA-ready',
-  'Made for dental teams',
+  'Made in Germany',
 ] as const;
 
 const features = [
@@ -336,6 +337,18 @@ export default function HomePage() {
                   {badge}
                 </div>
               ))}
+            </div>
+
+            <div className="mt-6 inline-flex items-center gap-3 rounded-2xl border border-foreground/10 bg-card/80 px-4 py-3 shadow-sm backdrop-blur">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-foreground text-background">
+                <Flag className="size-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Made in Germany</p>
+                <p className="text-xs text-muted-foreground">
+                  Entwickelt für Zahnarztpraxen in Deutschland
+                </p>
+              </div>
             </div>
           </div>
 

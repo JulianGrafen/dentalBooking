@@ -38,7 +38,7 @@ export default function UnlockPage() {
   function processKey(raw: string) {
     const key = extractPrivateKey(raw);
     if (!isValidPrivateKey(key)) {
-      setError('Ungültiger Private Key. Bitte laden Sie Ihre Recovery-Datei hoch oder fügen Sie den Base64-Key ein.');
+      setError('Ungültiger Wiederherstellungs-Key. Bitte laden Sie Ihre Recovery-Datei hoch oder fügen Sie den Base64-Key ein.');
       return;
     }
 
@@ -76,11 +76,11 @@ export default function UnlockPage() {
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
           <p className="text-sm font-medium text-primary">teeth.al</p>
-          <CardTitle>Praxis entsperren</CardTitle>
+          <CardTitle>Patientendaten wiederherstellen</CardTitle>
           <CardDescription>
-            Auf diesem Gerät ist kein Private Key gespeichert. Laden Sie Ihre
-            Recovery-Datei hoch oder fügen Sie den Key ein, um verschlüsselte
-            Termine lesen zu können.
+            Diese Seite ist nicht für den Login nötig. Nutzen Sie sie nur, wenn
+            auf diesem Gerät der Schlüssel zum Lesen verschlüsselter
+            Patientendaten fehlt.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -98,12 +98,12 @@ export default function UnlockPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="privateKey">oder Private Key einfügen</Label>
+              <Label htmlFor="privateKey">oder Wiederherstellungs-Key einfügen</Label>
               <Textarea
                 id="privateKey"
                 rows={6}
                 className="font-mono text-xs"
-                placeholder="Base64 Private Key oder komplette Recovery-Datei…"
+                placeholder="Base64-Key oder komplette Recovery-Datei…"
                 value={privateKeyInput}
                 onChange={(event) => setPrivateKeyInput(event.target.value)}
               />
@@ -112,7 +112,7 @@ export default function UnlockPage() {
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? 'Wird geprüft…' : 'Entsperren & zum Dashboard'}
+              {isPending ? 'Wird geprüft…' : 'Daten wiederherstellen'}
             </Button>
 
             <p className="text-center text-sm text-muted-foreground">

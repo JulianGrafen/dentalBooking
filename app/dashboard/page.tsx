@@ -8,6 +8,8 @@ import { isSupabaseConfigured } from '@/lib/supabase-config';
 import { uiClasses } from '@/lib/ui-classes';
 import { SupabaseNotConfigured } from '@/components/auth/supabase-not-configured';
 import { AppointmentsTable } from '@/components/dashboard/appointments-table';
+import { CancelledAppointmentsNotifications } from '@/components/dashboard/cancelled-appointments-notifications';
+import { EncryptionKeyNotice } from '@/components/dashboard/encryption-key-notice';
 import { PendingAppointmentsCard } from '@/components/dashboard/pending-appointments-card';
 import { BookingLinkCard } from '@/components/dashboard/booking-link-card';
 import { EmptyState } from '@/components/dashboard/empty-state';
@@ -36,23 +38,38 @@ export default async function DashboardPage() {
   const today = todayRange();
   const month = currentMonthRange();
 
-  const [practiceResult, appointmentsResult, pendingResult, recallResult, smartFillResult] =
+  const [
+    practiceResult,
+    appointmentsResult,
+    pendingResult,
+    cancelledResult,
+    recallResult,
+    smartFillResult,
+  ] =
     await Promise.all([
       Promise.resolve({ data: practice }),
       supabase
         .from('appointments')
-        .select('id, encrypted_payload, start_time, end_time, status')
+        .select('id, encrypted_payload, start_time, end_time, status, cancelled_at')
         .eq('practice_id', practice.id)
         .gte('start_time', today.startIso)
         .lt('start_time', today.endIso)
         .order('start_time'),
       supabase
         .from('appointments')
-        .select('id, encrypted_payload, start_time, end_time, status')
+        .select('id, encrypted_payload, start_time, end_time, status, cancelled_at')
         .eq('practice_id', practice.id)
         .eq('status', 'pending')
         .gte('start_time', new Date().toISOString())
         .order('start_time'),
+      supabase
+        .from('appointments')
+        .select('id, encrypted_payload, start_time, end_time, status, cancelled_at')
+        .eq('practice_id', practice.id)
+        .eq('status', 'cancelled')
+        .not('cancelled_at', 'is', null)
+        .order('cancelled_at', { ascending: false })
+        .limit(5),
       supabase
         .from('appointments')
         .select('id', { count: 'exact', head: true })
@@ -71,6 +88,7 @@ export default async function DashboardPage() {
 
   const appointments = appointmentsResult.data ?? [];
   const pendingAppointments = pendingResult.data ?? [];
+  const cancelledAppointments = cancelledResult.data ?? [];
   const dateFormatter = new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' });
   const requestOrigin = await getRequestOrigin();
 
@@ -113,6 +131,8 @@ export default async function DashboardPage() {
           />
         </section>
 
+        <EncryptionKeyNotice />
+        <CancelledAppointmentsNotifications appointments={cancelledAppointments} />
         <PendingAppointmentsCard appointments={pendingAppointments} />
 
         <section data-tour="today-appointments">
