@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { generateCandidateSlots, getAvailableBookingSlots } from '@/lib/booking-slots';
+import {
+  generateCandidateSlots,
+  getAvailableBookingSlots,
+  getBookingSlotOptions,
+} from '@/lib/booking-slots';
 import { getOpeningHoursForDate } from '@/lib/booking-hours';
 
 describe('generateCandidateSlots', () => {
@@ -45,5 +49,30 @@ describe('getAvailableBookingSlots', () => {
 
     expect(slots).toContain('09:30');
     expect(slots).not.toContain('09:00');
+  });
+});
+
+describe('getBookingSlotOptions', () => {
+  it('marks occupied future slots as waitlistable', () => {
+    const booked = [
+      {
+        start_time: '2026-07-13T07:00:00.000Z',
+        end_time: '2026-07-13T07:30:00.000Z',
+      },
+    ];
+
+    const slots = getBookingSlotOptions(
+      '2026-07-13',
+      30,
+      booked,
+      new Date('2026-07-12T12:00:00.000Z'),
+    );
+
+    expect(slots).toEqual(
+      expect.arrayContaining([
+        { time: '09:00', status: 'waitlist' },
+        { time: '09:30', status: 'available' },
+      ]),
+    );
   });
 });

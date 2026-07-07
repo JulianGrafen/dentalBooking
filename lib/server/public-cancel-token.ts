@@ -19,3 +19,21 @@ export function buildPublicCancelUrl(origin: string, token: string): string {
   url.searchParams.set('token', token);
   return url.toString();
 }
+
+export function createPublicWaitlistToken(): string {
+  return createPublicCancelToken();
+}
+
+export function hashPublicWaitlistToken(token: string): string {
+  return hashPublicCancelToken(token);
+}
+
+export function isPublicWaitlistToken(value: string | null | undefined): value is string {
+  return isPublicCancelToken(value);
+}
+
+export function buildPublicWaitlistConfirmUrl(origin: string, token: string): string {
+  const url = new URL('/termin/warteliste-bestaetigen', origin);
+  url.searchParams.set('token', token);
+  return url.toString();
+}

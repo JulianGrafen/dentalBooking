@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import { hashPublicCancelToken, isPublicCancelToken } from '@/lib/server/public-cancel-token';
+import {
+  createPublicWaitlistToken,
+  hashPublicCancelToken,
+  hashPublicWaitlistToken,
+  isPublicCancelToken,
+} from '@/lib/server/public-cancel-token';
+import { sendWaitlistOfferEmail } from '@/lib/server/waitlist-offer-email';
 import { createSupabasePublicClient } from '@/utils/supabase/public';
 
 export async function POST(request: Request) {
@@ -21,8 +27,10 @@ export async function POST(request: Request) {
   }
 
   const supabase = createSupabasePublicClient();
+  const waitlistToken = createPublicWaitlistToken();
   const { data, error } = await supabase.rpc('cancel_public_appointment', {
     cancel_token_hash: hashPublicCancelToken(token),
+    waitlist_offer_token_hash: hashPublicWaitlistToken(waitlistToken),
   });
 
   if (error) {
@@ -36,6 +44,24 @@ export async function POST(request: Request) {
       { error: 'Dieser Absage-Link ist ungültig, abgelaufen oder der Termin wurde bereits abgesagt.' },
       { status: 404 },
     );
+  }
+
+  if (appointment.waitlist_entry_id && appointment.waitlist_patient_email) {
+    try {
+      await sendWaitlistOfferEmail(
+        {
+          practiceName: appointment.practice_name,
+          patientEmail: appointment.waitlist_patient_email,
+          treatmentLabel: appointment.waitlist_treatment_label ?? 'Behandlung',
+          startTime: appointment.waitlist_start_time ?? appointment.start_time,
+          endTime: appointment.waitlist_end_time ?? appointment.end_time,
+        },
+        new URL(request.url).origin,
+        waitlistToken,
+      );
+    } catch (emailError) {
+      console.error('[public-cancel] waitlist email failed:', emailError);
+    }
   }
 
   return NextResponse.json({ appointment });

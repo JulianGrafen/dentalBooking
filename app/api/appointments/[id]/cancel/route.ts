@@ -3,6 +3,11 @@ import { cancelAppointmentSchema } from '@/lib/appointment-manage-schema';
 import { buildCancellationEmail } from '@/lib/appointment-notifications';
 import { sendEmail, type SendEmailResult } from '@/lib/email/send-email';
 import { requireOwnedAppointment } from '@/lib/server/appointment-auth';
+import {
+  createPublicWaitlistToken,
+  hashPublicWaitlistToken,
+} from '@/lib/server/public-cancel-token';
+import { sendWaitlistOfferEmail } from '@/lib/server/waitlist-offer-email';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -76,8 +81,44 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
+  const waitlistToken = createPublicWaitlistToken();
+  let waitlistEmailResult: SendEmailResult | null = null;
+  const { data: waitlistOffers, error: waitlistOfferError } = await auth.supabase.rpc(
+    'offer_public_waitlist_for_slot',
+    {
+      target_practice_id: auth.appointment.practice_id,
+      freed_start_time: auth.appointment.start_time,
+      freed_end_time: auth.appointment.end_time,
+      new_offer_token_hash: hashPublicWaitlistToken(waitlistToken),
+    },
+  );
+
+  if (waitlistOfferError) {
+    console.error('[cancel] waitlist offer failed:', waitlistOfferError.message);
+  }
+
+  const waitlistOffer = waitlistOffers?.[0];
+  if (waitlistOffer) {
+    try {
+      waitlistEmailResult = await sendWaitlistOfferEmail(
+        {
+          practiceName: waitlistOffer.practice_name,
+          patientEmail: waitlistOffer.patient_email,
+          treatmentLabel: waitlistOffer.treatment_label,
+          startTime: waitlistOffer.start_time,
+          endTime: waitlistOffer.end_time,
+        },
+        new URL(request.url).origin,
+        waitlistToken,
+      );
+    } catch (error) {
+      console.error('[cancel] waitlist email failed:', error);
+    }
+  }
+
   return NextResponse.json({
     appointment: updated,
     email: emailResult,
+    waitlistEmail: waitlistEmailResult,
   });
 }

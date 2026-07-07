@@ -11,6 +11,12 @@ export function mapBookingError(message: string): string {
   if (normalized.includes('appointment slot is no longer available')) {
     return 'Dieser Termin ist inzwischen belegt. Bitte wählen Sie eine andere Uhrzeit.';
   }
+  if (normalized.includes('appointment slot is available')) {
+    return 'Dieser Termin ist inzwischen frei. Bitte buchen Sie ihn direkt.';
+  }
+  if (normalized.includes('invalid patient email')) {
+    return 'Bitte geben Sie eine gültige E-Mail-Adresse für die Warteliste an.';
+  }
   if (normalized.includes('outside booking hours') || normalized.includes('not available on this day')) {
     return 'Dieser Termin liegt außerhalb der Öffnungszeiten (Mo–Fr 09–17 Uhr, Sa 09–13 Uhr).';
   }

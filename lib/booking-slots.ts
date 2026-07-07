@@ -8,6 +8,11 @@ export interface BookedInterval {
   end_time: string;
 }
 
+export interface BookingSlotOption {
+  time: string;
+  status: 'available' | 'waitlist';
+}
+
 function parseTimeToMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
@@ -68,5 +73,29 @@ export function getAvailableBookingSlots(
     return !booked.some((booking) =>
       rangesOverlap(start_time, end_time, booking.start_time, booking.end_time),
     );
+  });
+}
+
+/** All bookable start times for a day, including occupied slots that can join the waitlist. */
+export function getBookingSlotOptions(
+  isoDate: string,
+  durationMinutes: number,
+  booked: BookedInterval[],
+  now = new Date(),
+): BookingSlotOption[] {
+  const opening = getOpeningHoursForDate(isoDate);
+  if (!opening) return [];
+
+  const candidates = generateCandidateSlots(opening.open, opening.close, durationMinutes);
+
+  return candidates.flatMap((slot) => {
+    const { start_time, end_time } = buildSlotTimes(isoDate, slot, durationMinutes);
+    if (!isWithinBookingLeadTime(start_time, now)) return [];
+
+    const isOccupied = booked.some((booking) =>
+      rangesOverlap(start_time, end_time, booking.start_time, booking.end_time),
+    );
+
+    return [{ time: slot, status: isOccupied ? 'waitlist' : 'available' }];
   });
 }

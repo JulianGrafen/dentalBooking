@@ -15,6 +15,15 @@ export interface ConfirmationNotificationContext extends AppointmentNotification
   cancellationUrl: string;
 }
 
+export interface WaitlistOfferNotificationContext {
+  patientEmail: string;
+  practiceName: string;
+  treatment: string;
+  startTime: string;
+  endTime: string;
+  confirmationUrl: string;
+}
+
 export interface RescheduleNotificationContext extends AppointmentNotificationContext {
   previousStartTime: string;
   previousEndTime: string;
@@ -79,6 +88,27 @@ export function buildConfirmationEmail(
       `Falls Sie den Termin nicht wahrnehmen können, können Sie ihn hier absagen:\n` +
       `${ctx.cancellationUrl}\n\n` +
       `Der Termin wird erst abgesagt, nachdem Sie die Absage auf der Seite bestätigt haben.\n\n` +
+      `Mit freundlichen Grüßen\n` +
+      `${ctx.practiceName}`,
+  };
+}
+
+export function buildWaitlistOfferEmail(
+  ctx: WaitlistOfferNotificationContext,
+): OutboundEmail {
+  const slot = formatAppointmentTimeRange(ctx.startTime, ctx.endTime);
+
+  return {
+    to: ctx.patientEmail,
+    subject: `Termin frei geworden — ${ctx.practiceName}`,
+    body:
+      `Guten Tag,\n\n` +
+      `für Ihren Wartelistenwunsch ist ein Termin frei geworden:\n\n` +
+      `Behandlung: ${ctx.treatment}\n` +
+      `Termin: ${slot}\n\n` +
+      `Bitte bestätigen Sie den Termin über diesen Link:\n` +
+      `${ctx.confirmationUrl}\n\n` +
+      `Der Termin wird erst verbindlich in den Kalender eingetragen, nachdem Sie ihn auf der Seite bestätigt haben.\n\n` +
       `Mit freundlichen Grüßen\n` +
       `${ctx.practiceName}`,
   };

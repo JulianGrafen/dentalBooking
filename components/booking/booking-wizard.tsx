@@ -12,7 +12,11 @@ import { Separator } from '@/components/ui/separator';
 import { createBookingSchema } from '@/lib/booking-schema';
 import { mapBookingError } from '@/lib/booking-errors';
 import { formatOpeningHoursLabel, getOpeningHoursForDate } from '@/lib/booking-hours';
-import { getAvailableBookingSlots, type BookedInterval } from '@/lib/booking-slots';
+import {
+  getBookingSlotOptions,
+  type BookedInterval,
+  type BookingSlotOption,
+} from '@/lib/booking-slots';
 import { encryptPatientData } from '@/lib/crypto';
 import { buildSlotTimes } from '@/lib/appointment-times';
 import { findBookingTreatment, type PracticeBookingTreatment } from '@/lib/treatments';
@@ -24,6 +28,7 @@ import { cn } from '@/lib/utils';
 import type { InsuranceType } from '@/types/database';
 
 const STEPS = ['Versicherung', 'Behandlung', 'Termin'] as const;
+type BookingCompletionMode = 'booking' | 'waitlist';
 
 const optionClass =
   'flex cursor-pointer items-center gap-3 rounded-xl border border-border/80 bg-card p-4 transition-all hover:border-primary/40 hover:bg-primary/5 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 has-[[data-state=checked]]:shadow-sm';
@@ -66,6 +71,7 @@ export function BookingWizard({
   const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [completionMode, setCompletionMode] = useState<BookingCompletionMode>('booking');
   const [isPending, startTransition] = useTransition();
   const [bookedIntervals, setBookedIntervals] = useState<BookedInterval[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -75,30 +81,39 @@ export function BookingWizard({
     ? findBookingTreatment(treatmentId, treatments)
     : null;
 
-  const availableSlots = useMemo(() => {
+  const slotOptions = useMemo<BookingSlotOption[]>(() => {
     if (!date || !selectedTreatment) return [];
-    return getAvailableBookingSlots(
+    return getBookingSlotOptions(
       toIsoDate(date),
       selectedTreatment.durationMinutes,
       bookedIntervals,
     );
   }, [date, selectedTreatment, bookedIntervals]);
 
+  const selectedSlotOption = useMemo(
+    () => slotOptions.find((slot) => slot.time === timeSlot) ?? null,
+    [slotOptions, timeSlot],
+  );
+
+  function handleTreatmentChange(value: string) {
+    setTreatmentId(value);
+    setTimeSlot(null);
+    setBookedIntervals([]);
+    setSlotsError(null);
+  }
+
+  function handleDateSelect(nextDate: Date | undefined) {
+    setDate(nextDate);
+    setTimeSlot(null);
+    setBookedIntervals([]);
+    setSlotsError(null);
+  }
+
   useEffect(() => {
-    if (!date || !selectedTreatment) {
-      setBookedIntervals([]);
-      setTimeSlot(null);
-      setSlotsError(null);
-      return;
-    }
+    if (!date || !selectedTreatment) return;
 
     const isoDate = toIsoDate(date);
-    if (!getOpeningHoursForDate(isoDate)) {
-      setBookedIntervals([]);
-      setTimeSlot(null);
-      setSlotsError(null);
-      return;
-    }
+    if (!getOpeningHoursForDate(isoDate)) return;
 
     let cancelled = false;
 
@@ -136,17 +151,14 @@ export function BookingWizard({
     };
   }, [date, selectedTreatment, practiceSlug]);
 
-  useEffect(() => {
-    if (timeSlot && !availableSlots.includes(timeSlot)) {
-      setTimeSlot(null);
-    }
-  }, [availableSlots, timeSlot]);
-
   const canContinue =
     (step === 0 && insuranceType !== null) || (step === 1 && treatmentId !== null);
 
   const canSubmit =
-    date !== undefined && timeSlot !== null && patientName.trim().length >= 2 && email.length > 0;
+    date !== undefined &&
+    selectedSlotOption !== null &&
+    patientName.trim().length >= 2 &&
+    email.length > 0;
 
   /**
    * Zero-knowledge submit: validate → encrypt in the browser → insert.
@@ -154,7 +166,7 @@ export function BookingWizard({
    * cannot read name, contact or treatment.
    */
   function handleSubmit() {
-    if (!insuranceType || !treatmentId || !date || !timeSlot) return;
+    if (!insuranceType || !treatmentId || !date || !timeSlot || !selectedSlotOption) return;
     setError(null);
 
     const parsed = bookingSchema.safeParse({
@@ -197,13 +209,23 @@ export function BookingWizard({
       );
 
       const supabase = createSupabasePublicBrowserClient();
-      const { error: insertError } = await supabase.rpc('create_public_booking', {
-        booking_slug: practiceSlug,
-        treatment_slug: treatment.slug,
-        encrypted_payload: encryptedPayload,
-        requested_start_time: start_time,
-        requested_end_time: end_time,
-      });
+      const isWaitlistRequest = selectedSlotOption?.status === 'waitlist';
+      const { error: insertError } = isWaitlistRequest
+        ? await supabase.rpc('create_public_waitlist_entry', {
+            booking_slug: practiceSlug,
+            treatment_slug: treatment.slug,
+            encrypted_payload: encryptedPayload,
+            patient_email: parsed.data.email,
+            requested_start_time: start_time,
+            requested_end_time: end_time,
+          })
+        : await supabase.rpc('create_public_booking', {
+            booking_slug: practiceSlug,
+            treatment_slug: treatment.slug,
+            encrypted_payload: encryptedPayload,
+            requested_start_time: start_time,
+            requested_end_time: end_time,
+          });
 
       if (insertError) {
         console.error('[booking] insert failed:', insertError.message);
@@ -211,6 +233,7 @@ export function BookingWizard({
         return;
       }
 
+      setCompletionMode(isWaitlistRequest ? 'waitlist' : 'booking');
       setConfirmed(true);
     });
   }
@@ -221,10 +244,13 @@ export function BookingWizard({
         <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
           <CheckCircle2 className="size-7" />
         </div>
-        <h2 className="text-xl font-semibold">Termin angefragt</h2>
+        <h2 className="text-xl font-semibold">
+          {completionMode === 'waitlist' ? 'Auf Warteliste gesetzt' : 'Termin angefragt'}
+        </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Vielen Dank, {patientName}! Ihre Buchungsanfrage ist eingegangen — die Praxis prüft
-          den Termin und sendet Ihnen nach Bestätigung eine E-Mail.
+          {completionMode === 'waitlist'
+            ? `Vielen Dank, ${patientName}! Sie stehen auf der Warteliste. Sobald dieser Termin frei wird, erhalten Sie eine E-Mail mit einem Bestätigungslink.`
+            : `Vielen Dank, ${patientName}! Ihre Buchungsanfrage ist eingegangen — die Praxis prüft den Termin und sendet Ihnen nach Bestätigung eine E-Mail.`}
         </p>
       </div>
     );
@@ -269,7 +295,7 @@ export function BookingWizard({
         {step === 1 && (
           <RadioGroup
             value={treatmentId ?? ''}
-            onValueChange={(value) => setTreatmentId(value)}
+            onValueChange={handleTreatmentChange}
             className="gap-3"
           >
             {treatments.map((treatment) => (
@@ -296,7 +322,7 @@ export function BookingWizard({
                 mode="single"
                 locale={de}
                 selected={date}
-                onSelect={setDate}
+                onSelect={handleDateSelect}
                 disabled={(day) => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
@@ -337,24 +363,34 @@ export function BookingWizard({
                 </p>
               )}
 
-              {date && selectedTreatment && !slotsLoading && !slotsError && availableSlots.length === 0 && (
+              {date && selectedTreatment && !slotsLoading && !slotsError && slotOptions.length === 0 && (
                 <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
                   An diesem Tag sind keine freien Termine mehr verfügbar. Bitte wählen Sie
                   einen anderen Tag.
                 </p>
               )}
 
-              {date && selectedTreatment && !slotsLoading && !slotsError && availableSlots.length > 0 && (
+              {date && selectedTreatment && !slotsLoading && !slotsError && slotOptions.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {availableSlots.map((slot) => (
+                  {slotOptions.map((slot) => (
                     <Button
-                      key={slot}
+                      key={slot.time}
                       type="button"
-                      variant={timeSlot === slot ? 'default' : 'outline'}
-                      className="font-mono text-sm"
-                      onClick={() => setTimeSlot(slot)}
+                      variant={timeSlot === slot.time ? 'default' : 'outline'}
+                      className={cn(
+                        'h-auto min-h-10 flex-col gap-0.5 py-2 font-mono text-sm',
+                        slot.status === 'waitlist' &&
+                          timeSlot !== slot.time &&
+                          'border-amber-500/40 bg-amber-500/5 text-amber-700 hover:bg-amber-500/10',
+                      )}
+                      onClick={() => setTimeSlot(slot.time)}
                     >
-                      {slot}
+                      <span>{slot.time}</span>
+                      {slot.status === 'waitlist' && (
+                        <span className="font-sans text-[0.65rem] leading-none">
+                          Warteliste
+                        </span>
+                      )}
                     </Button>
                   ))}
                 </div>
@@ -431,7 +467,11 @@ export function BookingWizard({
               className="min-w-36 gap-2 shadow-sm shadow-primary/20"
             >
               <Lock className="size-4" />
-              {isPending ? 'Wird gebucht…' : 'Verschlüsselt buchen'}
+              {isPending
+                ? 'Wird gesendet…'
+                : selectedSlotOption?.status === 'waitlist'
+                  ? 'Auf Warteliste setzen'
+                  : 'Verschlüsselt buchen'}
             </Button>
           )}
         </div>

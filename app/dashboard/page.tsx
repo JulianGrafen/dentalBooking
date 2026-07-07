@@ -68,6 +68,7 @@ export default async function DashboardPage() {
         .eq('practice_id', practice.id)
         .eq('status', 'cancelled')
         .not('cancelled_at', 'is', null)
+        .is('cancellation_notice_dismissed_at', null)
         .order('cancelled_at', { ascending: false })
         .limit(5),
       supabase

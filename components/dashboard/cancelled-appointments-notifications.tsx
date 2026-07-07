@@ -1,10 +1,13 @@
 'use client';
 
-import { useMemo } from 'react';
-import { BellRing } from 'lucide-react';
+import { useMemo, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { BellRing, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { decryptAppointments, type EncryptedAppointment } from '@/lib/appointment-decrypt';
 import { formatAppointmentTimeRange } from '@/lib/format-datetime';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -25,6 +28,9 @@ const cancelledFormatter = new Intl.DateTimeFormat('de-DE', {
 export function CancelledAppointmentsNotifications({
   appointments,
 }: CancelledAppointmentsNotificationsProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
   const rows = useMemo(
     () =>
       decryptAppointments(appointments)
@@ -32,6 +38,23 @@ export function CancelledAppointmentsNotifications({
         .sort((a, b) => (b.cancelled_at ?? '').localeCompare(a.cancelled_at ?? '')),
     [appointments],
   );
+
+  function dismissNotification(appointmentId: string) {
+    startTransition(async () => {
+      const response = await fetch(`/api/appointments/${appointmentId}/dismiss-cancellation`, {
+        method: 'POST',
+      });
+
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        toast.error(payload.error ?? 'Benachrichtigung konnte nicht geschlossen werden');
+        return;
+      }
+
+      router.refresh();
+    });
+  }
 
   if (rows.length === 0) return null;
 
@@ -78,11 +101,24 @@ export function CancelledAppointmentsNotifications({
                   <p className="text-sm text-muted-foreground">{appointment.patientEmail}</p>
                 )}
               </div>
-              {appointment.cancelled_at && (
-                <p className="text-xs text-muted-foreground">
-                  Abgesagt am {cancelledFormatter.format(new Date(appointment.cancelled_at))}
-                </p>
-              )}
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                {appointment.cancelled_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Abgesagt am {cancelledFormatter.format(new Date(appointment.cancelled_at))}
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => dismissNotification(appointment.id)}
+                  aria-label="Benachrichtigung als geprüft markieren"
+                >
+                  <X className="size-4" />
+                  Als geprüft markieren
+                </Button>
+              </div>
             </div>
           </article>
         ))}
