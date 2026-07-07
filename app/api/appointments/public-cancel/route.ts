@@ -6,7 +6,26 @@ import {
   isPublicCancelToken,
 } from '@/lib/server/public-cancel-token';
 import { sendWaitlistOfferEmail } from '@/lib/server/waitlist-offer-email';
+import { processWaitlistOfferForSlot } from '@/lib/server/process-waitlist-offer';
 import { createSupabasePublicClient } from '@/utils/supabase/public';
+
+interface CancelPublicAppointmentRow {
+  practice_id?: string;
+  practice_name: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  waitlist_entry_id?: string | null;
+  waitlist_patient_email?: string | null;
+  waitlist_treatment_label?: string | null;
+  waitlist_start_time?: string | null;
+  waitlist_end_time?: string | null;
+}
+
+function isMissingRpcError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes('could not find the function') || normalized.includes('schema cache');
+}
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -27,18 +46,39 @@ export async function POST(request: Request) {
   }
 
   const supabase = createSupabasePublicClient();
+  const origin = new URL(request.url).origin;
   const waitlistToken = createPublicWaitlistToken();
-  const { data, error } = await supabase.rpc('cancel_public_appointment', {
-    cancel_token_hash: hashPublicCancelToken(token),
+  const cancelTokenHash = hashPublicCancelToken(token);
+
+  let appointment: CancelPublicAppointmentRow | null = null;
+
+  const cancelWithWaitlist = await supabase.rpc('cancel_public_appointment', {
+    cancel_token_hash: cancelTokenHash,
     waitlist_offer_token_hash: hashPublicWaitlistToken(waitlistToken),
   });
 
-  if (error) {
-    console.error('[public-cancel] failed:', error.message);
+  if (cancelWithWaitlist.error && isMissingRpcError(cancelWithWaitlist.error.message)) {
+    const legacyCancel = await supabase.rpc('cancel_public_appointment', {
+      cancel_token_hash: cancelTokenHash,
+    });
+
+    if (legacyCancel.error) {
+      console.error('[public-cancel] failed:', legacyCancel.error.message);
+      return NextResponse.json({ error: 'Termin konnte nicht abgesagt werden' }, { status: 500 });
+    }
+
+    appointment = (Array.isArray(legacyCancel.data) ? legacyCancel.data[0] : legacyCancel.data) as
+      | CancelPublicAppointmentRow
+      | null;
+  } else if (cancelWithWaitlist.error) {
+    console.error('[public-cancel] failed:', cancelWithWaitlist.error.message);
     return NextResponse.json({ error: 'Termin konnte nicht abgesagt werden' }, { status: 500 });
+  } else {
+    appointment = (
+      Array.isArray(cancelWithWaitlist.data) ? cancelWithWaitlist.data[0] : cancelWithWaitlist.data
+    ) as CancelPublicAppointmentRow | null;
   }
 
-  const appointment = Array.isArray(data) ? data[0] : data;
   if (!appointment) {
     return NextResponse.json(
       { error: 'Dieser Absage-Link ist ungültig, abgelaufen oder der Termin wurde bereits abgesagt.' },
@@ -56,11 +96,24 @@ export async function POST(request: Request) {
           startTime: appointment.waitlist_start_time ?? appointment.start_time,
           endTime: appointment.waitlist_end_time ?? appointment.end_time,
         },
-        new URL(request.url).origin,
+        origin,
         waitlistToken,
       );
     } catch (emailError) {
       console.error('[public-cancel] waitlist email failed:', emailError);
+    }
+  } else if (appointment.practice_id) {
+    const waitlistResult = await processWaitlistOfferForSlot(
+      {
+        practiceId: appointment.practice_id,
+        startTime: appointment.start_time,
+        endTime: appointment.end_time,
+      },
+      origin,
+    );
+
+    if (waitlistResult.error) {
+      console.error('[public-cancel] waitlist fallback failed:', waitlistResult.error);
     }
   }
 

@@ -356,6 +356,7 @@ export type Database = {
       cancel_public_appointment: {
         Args: { cancel_token_hash: string; waitlist_offer_token_hash?: string | null };
         Returns: {
+          practice_id: string;
           practice_name: string;
           start_time: string;
           end_time: string;
@@ -365,6 +366,22 @@ export type Database = {
           waitlist_treatment_label: string | null;
           waitlist_start_time: string | null;
           waitlist_end_time: string | null;
+        }[];
+      };
+      offer_public_waitlist_for_cancelled_slot: {
+        Args: {
+          target_practice_id: string;
+          freed_start_time: string;
+          freed_end_time: string;
+          new_offer_token_hash: string;
+        };
+        Returns: {
+          waitlist_entry_id: string;
+          practice_name: string;
+          patient_email: string;
+          treatment_label: string;
+          start_time: string;
+          end_time: string;
         }[];
       };
       confirm_public_waitlist_offer: {
