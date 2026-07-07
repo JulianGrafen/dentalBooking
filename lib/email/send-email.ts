@@ -1,3 +1,4 @@
+import { validateEmailFrom } from '@/lib/email/email-from';
 import { mapResendError } from '@/lib/email/resend-errors';
 
 export interface OutboundEmail {
@@ -21,16 +22,23 @@ export interface SendEmailResult {
  */
 export async function sendEmail(message: OutboundEmail): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
+  const from = process.env.EMAIL_FROM?.trim();
 
-  if (!apiKey || !from) {
+  if (!apiKey) {
     console.log(`[email] SIMULATED -> ${message.to} | ${message.subject}\n${message.body}`);
     return {
       sent: false,
       mode: 'simulated',
-      detail: 'RESEND_API_KEY oder EMAIL_FROM fehlt',
+      detail: 'RESEND_API_KEY fehlt',
     };
   }
+
+  const fromError = validateEmailFrom(from);
+  if (fromError) {
+    throw new Error(fromError);
+  }
+
+  console.log(`[email] sending via Resend from=${from} to=${message.to}`);
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -39,7 +47,7 @@ export async function sendEmail(message: OutboundEmail): Promise<SendEmailResult
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from,
+      from: from!,
       to: [message.to],
       subject: message.subject,
       text: message.body,

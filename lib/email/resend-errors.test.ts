@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { validateEmailFrom } from '@/lib/email/email-from';
 import { mapResendError } from '@/lib/email/resend-errors';
+
+describe('validateEmailFrom', () => {
+  it('rejects resend.dev sandbox sender', () => {
+    expect(validateEmailFrom('teeth.al <onboarding@resend.dev>')).toContain('Vercel');
+  });
+
+  it('accepts verified domain sender', () => {
+    expect(validateEmailFrom('teeth.al <noreply@teeth.al>')).toBeNull();
+  });
+});
 
 describe('mapResendError', () => {
   it('explains Resend sandbox recipient restriction', () => {
@@ -8,6 +19,15 @@ describe('mapResendError', () => {
     );
 
     expect(message).toContain('ju.liangraefen@gmail.com');
-    expect(message).toContain('resend.com/domains');
+    expect(message).toContain('EMAIL_FROM');
+  });
+
+  it('names unverified domain from JSON error', () => {
+    const message = mapResendError(
+      '{"statusCode":403,"message":"The teeth.al domain is not verified. Please, add and verify your domain on https://resend.com/domains"}',
+    );
+
+    expect(message).toContain('teeth.al');
+    expect(message).toContain('EMAIL_FROM');
   });
 });

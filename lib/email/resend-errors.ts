@@ -1,32 +1,47 @@
+function extractResendMessage(detail: string): string {
+  try {
+    const parsed = JSON.parse(detail) as { message?: string };
+    if (parsed.message) return parsed.message;
+  } catch {
+    // Plain-text error body from Resend.
+  }
+
+  return detail;
+}
+
 /** Maps Resend API errors to actionable German messages for practice staff. */
 export function mapResendError(detail: string): string {
-  const normalized = detail.toLowerCase();
+  const message = extractResendMessage(detail);
+  const normalized = message.toLowerCase();
 
   if (
     normalized.includes('only send testing emails to your own email') ||
-    normalized.includes('verify a domain')
+    (normalized.includes('verify a domain') && normalized.includes('testing emails'))
   ) {
-    const ownEmailMatch = detail.match(
-      /your own email address \(([^)]+)\)/i,
-    );
+    const ownEmailMatch = message.match(/your own email address \(([^)]+)\)/i);
     const ownEmail = ownEmailMatch?.[1];
 
     return ownEmail
-      ? `Resend-Testmodus: E-Mails gehen nur an ${ownEmail}. Für Patienten-Mails Domain bei resend.com/domains verifizieren und EMAIL_FROM anpassen.`
-      : 'Resend-Testmodus: E-Mails gehen nur an Ihre Resend-Konto-E-Mail. Domain verifizieren für Patienten-Versand.';
-  }
-
-  if (normalized.includes('invalid from') || normalized.includes('from address')) {
-    return 'Absender ungültig — EMAIL_FROM muss eine verifizierte Domain bei Resend nutzen.';
-  }
-
-  if (normalized.includes('invalid api key') || normalized.includes('unauthorized')) {
-    return 'Resend API-Key ungültig — RESEND_API_KEY in .env.local prüfen.';
+      ? `Resend-Testmodus: E-Mails gehen nur an ${ownEmail}. EMAIL_FROM in Vercel auf Ihre verifizierte Domain setzen.`
+      : 'Resend-Testmodus aktiv — EMAIL_FROM in Vercel auf Ihre verifizierte Domain setzen.';
   }
 
   if (normalized.includes('domain is not verified')) {
-    return 'E-Mail-Domain bei Resend noch nicht verifiziert — siehe resend.com/domains.';
+    const domainMatch = message.match(/the ([^\s]+) domain is not verified/i);
+    const domain = domainMatch?.[1];
+
+    return domain
+      ? `Die Absender-Domain „${domain}“ ist bei Resend nicht verifiziert — prüfen Sie EMAIL_FROM in Vercel (z. B. noreply@${domain}).`
+      : 'Die Absender-Domain in EMAIL_FROM ist bei Resend nicht verifiziert — prüfen Sie die Vercel-Umgebungsvariable.';
   }
 
-  return `E-Mail-Versand fehlgeschlagen: ${detail}`;
+  if (normalized.includes('invalid from') || normalized.includes('from address')) {
+    return 'Absender ungültig — EMAIL_FROM muss eine Adresse Ihrer verifizierten Resend-Domain sein.';
+  }
+
+  if (normalized.includes('invalid api key') || normalized.includes('unauthorized')) {
+    return 'Resend API-Key ungültig — RESEND_API_KEY in Vercel prüfen (gleiches Resend-Konto wie die Domain).';
+  }
+
+  return `E-Mail-Versand fehlgeschlagen: ${message}`;
 }
