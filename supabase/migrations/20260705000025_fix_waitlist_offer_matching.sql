@@ -257,6 +257,7 @@ begin
 end;
 $$;
 
+drop function if exists public.cancel_public_appointment(text, text);
 drop function if exists public.cancel_public_appointment(text);
 
 create or replace function public.cancel_public_appointment(
