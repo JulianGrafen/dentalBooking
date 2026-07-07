@@ -41,8 +41,14 @@ export function mapBookingError(message: string): string {
   if (normalized.includes('invalid input value for enum') && normalized.includes('pending')) {
     return 'Buchungssystem nicht aktuell — bitte Datenbank-Migrationen ausführen (npm run db:push).';
   }
+  if (
+    normalized.includes('create_public_waitlist_entry') ||
+    normalized.includes('get_public_waitlist_offer')
+  ) {
+    return 'Die Warteliste ist auf dem Server noch nicht eingerichtet. Bitte wählen Sie einen freien Termin oder führen Sie npm run db:push aus.';
+  }
   if (normalized.includes('could not find the function') || normalized.includes('schema cache')) {
-    return 'Buchungssystem nicht eingerichtet. Die Datenbank-Migrationen fehlen noch.';
+    return 'Buchungssystem nicht eingerichtet. Die Datenbank-Migrationen fehlen noch (npm run db:push).';
   }
 
   return `Buchung fehlgeschlagen: ${message}`;
