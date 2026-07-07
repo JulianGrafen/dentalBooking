@@ -8,7 +8,7 @@ describe('validateEmailFrom', () => {
   });
 
   it('accepts verified domain sender', () => {
-    expect(validateEmailFrom('teeth.al <noreply@teeth.al>')).toBeNull();
+    expect(validateEmailFrom('teeth.al <noreply@teethal.de>')).toBeNull();
   });
 });
 
@@ -24,10 +24,10 @@ describe('mapResendError', () => {
 
   it('names unverified domain from JSON error', () => {
     const message = mapResendError(
-      '{"statusCode":403,"message":"The teeth.al domain is not verified. Please, add and verify your domain on https://resend.com/domains"}',
+      '{"statusCode":403,"message":"The teethal.de domain is not verified. Please, add and verify your domain on https://resend.com/domains"}',
     );
 
-    expect(message).toContain('teeth.al');
+    expect(message).toContain('teethal.de');
     expect(message).toContain('EMAIL_FROM');
   });
 });

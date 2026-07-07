@@ -9,7 +9,7 @@ export function validateEmailFrom(from: string | undefined): string | null {
   if (normalized.includes('@resend.dev')) {
     return (
       'EMAIL_FROM nutzt noch den Resend-Testabsender (onboarding@resend.dev). ' +
-      'In Vercel auf Ihre verifizierte Domain umstellen, z. B. teeth.al <noreply@teeth.al>.'
+      'In Vercel auf Ihre verifizierte Domain umstellen, z. B. teeth.al <noreply@teethal.de>.'
     );
   }
 
@@ -17,7 +17,7 @@ export function validateEmailFrom(from: string | undefined): string | null {
   const email = emailMatch?.[1] ?? emailMatch?.[0];
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return `EMAIL_FROM hat ein ungültiges Format: „${normalized}“. Beispiel: teeth.al <noreply@ihre-domain.de>`;
+    return `EMAIL_FROM hat ein ungültiges Format: „${normalized}“. Beispiel: teeth.al <noreply@teethal.de>`;
   }
 
   return null;
