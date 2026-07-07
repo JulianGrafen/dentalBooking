@@ -28,9 +28,12 @@ export default async function BookingPage({ params }: BookingPageProps) {
   }
 
   const supabase = createSupabasePublicClient();
-  const { data, error } = await supabase.rpc('get_public_booking_practice', {
-    booking_slug: slug,
-  });
+  const [practiceResult, treatmentsResult] = await Promise.all([
+    supabase.rpc('get_public_booking_practice', { booking_slug: slug }),
+    supabase.rpc('get_public_booking_treatments', { booking_slug: slug }),
+  ]);
+
+  const { data, error } = practiceResult;
 
   if (error) {
     const isMissingRpc =
@@ -51,6 +54,36 @@ export default async function BookingPage({ params }: BookingPageProps) {
   const practice = Array.isArray(data) ? data[0] : data;
   if (!practice?.public_key) notFound();
 
+  if (treatmentsResult.error) {
+    const isMissingRpc =
+      treatmentsResult.error.message.includes('Could not find the function') ||
+      treatmentsResult.error.message.includes('schema cache');
+
+    return (
+      <BookingSetupError
+        message={
+          isMissingRpc
+            ? 'Die Buchungs-API ist in der Datenbank noch nicht eingerichtet. Bitte npm run db:push ausführen.'
+            : `Technischer Fehler beim Laden der Behandlungen: ${treatmentsResult.error.message}`
+        }
+      />
+    );
+  }
+
+  const treatments = (Array.isArray(treatmentsResult.data) ? treatmentsResult.data : []).map(
+    (row) => ({
+      slug: row.slug,
+      label: row.label,
+      durationMinutes: row.duration_minutes,
+    }),
+  );
+
+  if (treatments.length === 0) {
+    return (
+      <BookingSetupError message="Für diese Praxis sind derzeit keine Online-Behandlungen freigeschaltet." />
+    );
+  }
+
   return (
     <main className={`${uiClasses.pageContainer} max-w-xl`}>
       <header className="mb-8 space-y-4 text-center">
@@ -69,7 +102,11 @@ export default async function BookingPage({ params }: BookingPageProps) {
         </div>
       </header>
 
-      <BookingWizard practiceSlug={slug} practicePublicKey={practice.public_key} />
+      <BookingWizard
+        practiceSlug={slug}
+        practicePublicKey={practice.public_key}
+        treatments={treatments}
+      />
     </main>
   );
 }

@@ -3,7 +3,13 @@ import {
   buildCancellationEmail,
   buildRescheduleEmail,
 } from '@/lib/appointment-notifications';
-import { appointmentDurationMinutes, buildSlotTimes, isFutureSlot } from '@/lib/appointment-times';
+import {
+  appointmentDurationMinutes,
+  buildSlotTimes,
+  isFutureSlot,
+  isWithinBookingLeadTime,
+  wallTimeToUtcIso,
+} from '@/lib/appointment-times';
 
 describe('buildCancellationEmail', () => {
   it('includes patient name, treatment and practice', () => {
@@ -68,5 +74,21 @@ describe('appointment-times', () => {
     const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     expect(isFutureSlot(future)).toBe(true);
     expect(isFutureSlot('2020-01-01T10:00:00.000Z')).toBe(false);
+  });
+
+  it('accepts slots exactly 30 minutes ahead', () => {
+    const now = new Date('2026-07-07T14:00:00.000Z');
+    const start = new Date(now.getTime() + 30 * 60_000).toISOString();
+    expect(isWithinBookingLeadTime(start, now)).toBe(true);
+  });
+
+  it('maps Berlin wall time to UTC', () => {
+    const utc = wallTimeToUtcIso('2026-07-14', '10:00');
+    expect(new Intl.DateTimeFormat('de-DE', {
+      timeZone: 'Europe/Berlin',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(utc))).toBe('10:00');
   });
 });

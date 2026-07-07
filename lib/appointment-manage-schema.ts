@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { BOOKING_TIME_SLOTS } from '@/lib/booking-schema';
+import { timeSlotSchema } from '@/lib/booking-schema';
 
 export const patientNotificationSchema = z.object({
   patientEmail: z.string().trim().email('Ungültige E-Mail-Adresse').max(320),
@@ -17,7 +17,7 @@ export const cancelAppointmentSchema = patientNotificationSchema.extend({
 
 export const rescheduleAppointmentSchema = patientNotificationSchema.extend({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ungültiges Datum'),
-  timeSlot: z.enum(BOOKING_TIME_SLOTS),
+  timeSlot: timeSlotSchema,
 });
 
 export type CancelAppointmentInput = z.infer<typeof cancelAppointmentSchema>;

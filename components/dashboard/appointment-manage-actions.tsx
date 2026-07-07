@@ -17,8 +17,11 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { BOOKING_TIME_SLOTS } from '@/lib/booking-schema';
+import { QUARTER_HOUR_TIME_PATTERN } from '@/lib/booking-schema';
+import { formatOpeningHoursLabel, getOpeningHoursForDate } from '@/lib/booking-hours';
+import { generateCandidateSlots } from '@/lib/booking-slots';
 import type { DecryptedAppointment } from '@/lib/appointment-decrypt';
+import { appointmentDurationMinutes } from '@/lib/appointment-times';
 import { formatAppointmentTimeRange } from '@/lib/format-datetime';
 import { cn } from '@/lib/utils';
 
@@ -39,9 +42,7 @@ function slotFromStartTime(startIso: string): string {
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   const slot = `${hours}:${minutes}`;
-  return BOOKING_TIME_SLOTS.includes(slot as (typeof BOOKING_TIME_SLOTS)[number])
-    ? slot
-    : BOOKING_TIME_SLOTS[0];
+  return QUARTER_HOUR_TIME_PATTERN.test(slot) ? slot : '09:00';
 }
 
 export function AppointmentManageActions({
@@ -62,6 +63,15 @@ export function AppointmentManageActions({
     () => formatAppointmentTimeRange(appointment.start_time, appointment.end_time),
     [appointment.end_time, appointment.start_time],
   );
+  const durationMinutes = useMemo(
+    () => appointmentDurationMinutes(appointment.start_time, appointment.end_time),
+    [appointment.end_time, appointment.start_time],
+  );
+  const rescheduleSlots = useMemo(() => {
+    const opening = getOpeningHoursForDate(toIsoDate(selectedDate));
+    if (!opening) return [];
+    return generateCandidateSlots(opening.open, opening.close, durationMinutes);
+  }, [selectedDate, durationMinutes]);
 
   if (!isBooked) return null;
 
@@ -260,14 +270,20 @@ export function AppointmentManageActions({
             </div>
 
             <div className="space-y-2">
-              <Label>Neue Uhrzeit</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {BOOKING_TIME_SLOTS.map((slot) => (
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <Label>Neue Uhrzeit</Label>
+                <span className="text-xs text-muted-foreground">
+                  {formatOpeningHoursLabel(toIsoDate(selectedDate))}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {rescheduleSlots.map((slot) => (
                   <Button
                     key={slot}
                     type="button"
                     variant={timeSlot === slot ? 'default' : 'outline'}
                     size="sm"
+                    className="font-mono"
                     onClick={() => setTimeSlot(slot)}
                   >
                     {slot}

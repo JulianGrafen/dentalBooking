@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { de } from 'react-day-picker/locale';
 import { CheckCircle2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,10 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
-import { bookingSchema, BOOKING_TIME_SLOTS } from '@/lib/booking-schema';
+import { createBookingSchema } from '@/lib/booking-schema';
+import { mapBookingError } from '@/lib/booking-errors';
+import { formatOpeningHoursLabel, getOpeningHoursForDate } from '@/lib/booking-hours';
+import { getAvailableBookingSlots, type BookedInterval } from '@/lib/booking-slots';
 import { encryptPatientData } from '@/lib/crypto';
 import { buildSlotTimes } from '@/lib/appointment-times';
-import { getTreatment, TREATMENT_TYPES, type TreatmentId } from '@/lib/treatments';
+import { findBookingTreatment, type PracticeBookingTreatment } from '@/lib/treatments';
 import { StepIndicator } from '@/components/booking/step-indicator';
 import { uiClasses } from '@/lib/ui-classes';
 import { createSupabaseBrowserClient } from '@/utils/supabase/client';
@@ -25,39 +28,37 @@ const STEPS = ['Versicherung', 'Behandlung', 'Termin'] as const;
 const optionClass =
   'flex cursor-pointer items-center gap-3 rounded-xl border border-border/80 bg-card p-4 transition-all hover:border-primary/40 hover:bg-primary/5 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 has-[[data-state=checked]]:shadow-sm';
 
-function mapBookingError(message: string): string {
-  const normalized = message.toLowerCase();
-  if (normalized.includes('invalid booking target')) {
-    return 'Diese Buchungsseite ist nicht verfügbar. Bitte prüfen Sie den Link Ihrer Praxis.';
-  }
-  if (normalized.includes('appointment must be in the future')) {
-    return 'Der Termin muss mindestens 30 Minuten in der Zukunft liegen.';
-  }
-  if (normalized.includes('appointment slot is no longer available')) {
-    return 'Dieser Termin ist bereits belegt. Bitte wählen Sie eine andere Uhrzeit.';
-  }
-  if (normalized.includes('outside booking hours') || normalized.includes('not available on this day')) {
-    return 'Dieser Termin liegt außerhalb der buchbaren Zeiten (Mo–Sa, 09–16 Uhr).';
-  }
-  if (normalized.includes('too many recent booking attempts')) {
-    return 'Zu viele Buchungsversuche. Bitte warten Sie einige Minuten.';
-  }
-  if (normalized.includes('could not find the function') || normalized.includes('schema cache')) {
-    return 'Buchungssystem nicht eingerichtet. Die Datenbank-Migrationen fehlen noch.';
-  }
-  return 'Buchung fehlgeschlagen. Bitte versuchen Sie es erneut.';
-}
-
 interface BookingWizardProps {
   practiceSlug: string;
   /** Base64 public key of the practice — all patient data is encrypted against it. */
   practicePublicKey: string;
+  treatments: PracticeBookingTreatment[];
 }
 
-export function BookingWizard({ practiceSlug, practicePublicKey }: BookingWizardProps) {
+function toIsoDate(value: Date): string {
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(
+    value.getDate(),
+  ).padStart(2, '0')}`;
+}
+
+export function BookingWizard({
+  practiceSlug,
+  practicePublicKey,
+  treatments,
+}: BookingWizardProps) {
+  const bookingSchema = useMemo(
+    () =>
+      createBookingSchema(
+        treatments.length > 0
+          ? (treatments.map((treatment) => treatment.slug) as [string, ...string[]])
+          : ['__none__'],
+      ),
+    [treatments],
+  );
+
   const [step, setStep] = useState(0);
   const [insuranceType, setInsuranceType] = useState<InsuranceType | null>(null);
-  const [treatmentId, setTreatmentId] = useState<TreatmentId | null>(null);
+  const [treatmentId, setTreatmentId] = useState<string | null>(null);
   const [date, setDate] = useState<Date | undefined>();
   const [timeSlot, setTimeSlot] = useState<string | null>(null);
   const [patientName, setPatientName] = useState('');
@@ -66,18 +67,86 @@ export function BookingWizard({ practiceSlug, practicePublicKey }: BookingWizard
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [bookedIntervals, setBookedIntervals] = useState<BookedInterval[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
+
+  const selectedTreatment = treatmentId
+    ? findBookingTreatment(treatmentId, treatments)
+    : null;
+
+  const availableSlots = useMemo(() => {
+    if (!date || !selectedTreatment) return [];
+    return getAvailableBookingSlots(
+      toIsoDate(date),
+      selectedTreatment.durationMinutes,
+      bookedIntervals,
+    );
+  }, [date, selectedTreatment, bookedIntervals]);
+
+  useEffect(() => {
+    if (!date || !selectedTreatment) {
+      setBookedIntervals([]);
+      setTimeSlot(null);
+      setSlotsError(null);
+      return;
+    }
+
+    const isoDate = toIsoDate(date);
+    if (!getOpeningHoursForDate(isoDate)) {
+      setBookedIntervals([]);
+      setTimeSlot(null);
+      setSlotsError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadAvailability() {
+      setSlotsLoading(true);
+      setTimeSlot(null);
+      setSlotsError(null);
+
+      const supabase = createSupabaseBrowserClient();
+      const { data, error: availabilityError } = await supabase.rpc(
+        'get_public_booking_availability',
+        {
+          booking_slug: practiceSlug,
+          booking_date: isoDate,
+        },
+      );
+
+      if (cancelled) return;
+
+      if (availabilityError) {
+        console.error('[booking] availability failed:', availabilityError.message);
+        setBookedIntervals([]);
+        setSlotsError(mapBookingError(availabilityError.message));
+      } else {
+        setBookedIntervals(Array.isArray(data) ? data : []);
+      }
+
+      setSlotsLoading(false);
+    }
+
+    loadAvailability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [date, selectedTreatment, practiceSlug]);
+
+  useEffect(() => {
+    if (timeSlot && !availableSlots.includes(timeSlot)) {
+      setTimeSlot(null);
+    }
+  }, [availableSlots, timeSlot]);
 
   const canContinue =
     (step === 0 && insuranceType !== null) || (step === 1 && treatmentId !== null);
 
   const canSubmit =
     date !== undefined && timeSlot !== null && patientName.trim().length >= 2 && email.length > 0;
-
-  function toIsoDate(value: Date): string {
-    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(
-      value.getDate(),
-    ).padStart(2, '0')}`;
-  }
 
   /**
    * Zero-knowledge submit: validate → encrypt in the browser → insert.
@@ -104,7 +173,12 @@ export function BookingWizard({ practiceSlug, practicePublicKey }: BookingWizard
     }
 
     startTransition(async () => {
-      const treatment = getTreatment(parsed.data.treatmentId);
+      const treatment = findBookingTreatment(parsed.data.treatmentId, treatments);
+      if (!treatment) {
+        setError('Bitte wählen Sie eine gültige Behandlung.');
+        return;
+      }
+
       const { start_time, end_time } = buildSlotTimes(
         parsed.data.date,
         parsed.data.timeSlot,
@@ -125,6 +199,7 @@ export function BookingWizard({ practiceSlug, practicePublicKey }: BookingWizard
       const supabase = createSupabaseBrowserClient();
       const { error: insertError } = await supabase.rpc('create_public_booking', {
         booking_slug: practiceSlug,
+        treatment_slug: treatment.slug,
         encrypted_payload: encryptedPayload,
         requested_start_time: start_time,
         requested_end_time: end_time,
@@ -194,15 +269,15 @@ export function BookingWizard({ practiceSlug, practicePublicKey }: BookingWizard
         {step === 1 && (
           <RadioGroup
             value={treatmentId ?? ''}
-            onValueChange={(value) => setTreatmentId(value as TreatmentId)}
+            onValueChange={(value) => setTreatmentId(value)}
             className="gap-3"
           >
-            {TREATMENT_TYPES.map((treatment) => (
+            {treatments.map((treatment) => (
               <Label
-                key={treatment.id}
+                key={treatment.slug}
                 className={optionClass}
               >
-                <RadioGroupItem value={treatment.id} />
+                <RadioGroupItem value={treatment.slug} />
                 <div className="flex w-full items-center justify-between">
                   <p className="font-medium">{treatment.label}</p>
                   <p className="text-sm text-muted-foreground">
@@ -222,24 +297,68 @@ export function BookingWizard({ practiceSlug, practicePublicKey }: BookingWizard
                 locale={de}
                 selected={date}
                 onSelect={setDate}
-                disabled={{ before: new Date() }}
+                disabled={(day) => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  if (day < today) return true;
+                  if (day.getDay() === 0) return true;
+                  return getOpeningHoursForDate(toIsoDate(day)) === null;
+                }}
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Uhrzeit</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {BOOKING_TIME_SLOTS.map((slot) => (
-                  <Button
-                    key={slot}
-                    type="button"
-                    variant={timeSlot === slot ? 'default' : 'outline'}
-                    onClick={() => setTimeSlot(slot)}
-                  >
-                    {slot}
-                  </Button>
-                ))}
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <Label>Uhrzeit</Label>
+                {date && (
+                  <span className="text-xs text-muted-foreground">
+                    Öffnungszeiten: {formatOpeningHoursLabel(toIsoDate(date))}
+                  </span>
+                )}
               </div>
+
+              {!date && (
+                <p className="text-sm text-muted-foreground">Bitte wählen Sie zuerst ein Datum.</p>
+              )}
+
+              {date && !selectedTreatment && (
+                <p className="text-sm text-muted-foreground">
+                  Bitte wählen Sie zuerst eine Behandlung.
+                </p>
+              )}
+
+              {date && selectedTreatment && slotsLoading && (
+                <p className="text-sm text-muted-foreground">Freie Termine werden geladen…</p>
+              )}
+
+              {date && selectedTreatment && slotsError && (
+                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {slotsError}
+                </p>
+              )}
+
+              {date && selectedTreatment && !slotsLoading && !slotsError && availableSlots.length === 0 && (
+                <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+                  An diesem Tag sind keine freien Termine mehr verfügbar. Bitte wählen Sie
+                  einen anderen Tag.
+                </p>
+              )}
+
+              {date && selectedTreatment && !slotsLoading && !slotsError && availableSlots.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {availableSlots.map((slot) => (
+                    <Button
+                      key={slot}
+                      type="button"
+                      variant={timeSlot === slot ? 'default' : 'outline'}
+                      className="font-mono text-sm"
+                      onClick={() => setTimeSlot(slot)}
+                    >
+                      {slot}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Separator />

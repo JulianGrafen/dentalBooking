@@ -121,6 +121,47 @@ export type Database = {
           },
         ];
       };
+      practice_booking_treatments: {
+        Row: {
+          practice_id: string;
+          slug: string;
+          label: string;
+          duration_minutes: number;
+          is_active: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          practice_id: string;
+          slug: string;
+          label: string;
+          duration_minutes: number;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          practice_id?: string;
+          slug?: string;
+          label?: string;
+          duration_minutes?: number;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'practice_booking_treatments_practice_id_fkey';
+            columns: ['practice_id'];
+            isOneToOne: false;
+            referencedRelation: 'practices';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       patients: {
         Row: {
           id: string;
@@ -226,6 +267,7 @@ export type Database = {
       create_public_booking: {
         Args: {
           booking_slug: string;
+          treatment_slug: string;
           encrypted_payload: string;
           requested_start_time: string;
           requested_end_time: string;
@@ -237,6 +279,21 @@ export type Database = {
         Returns: {
           name: string;
           public_key: string;
+        }[];
+      };
+      get_public_booking_treatments: {
+        Args: { booking_slug: string };
+        Returns: {
+          slug: string;
+          label: string;
+          duration_minutes: number;
+        }[];
+      };
+      get_public_booking_availability: {
+        Args: { booking_slug: string; booking_date: string };
+        Returns: {
+          start_time: string;
+          end_time: string;
         }[];
       };
       is_practice_member: {
@@ -266,3 +323,5 @@ export type InsuranceType = Database['public']['Enums']['insurance_type'];
 export type AppointmentStatus = Database['public']['Enums']['appointment_status'];
 export type AppointmentSource = Database['public']['Enums']['appointment_source'];
 export type PracticeRole = Database['public']['Enums']['practice_role'];
+export type PracticeBookingTreatmentRow =
+  Database['public']['Tables']['practice_booking_treatments']['Row'];
