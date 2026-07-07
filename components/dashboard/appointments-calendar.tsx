@@ -13,6 +13,7 @@ import {
   type DecryptedAppointment,
   type EncryptedAppointment,
 } from '@/lib/appointment-decrypt';
+import { filterAppointmentsByPatientName, normalizePatientSearchQuery } from '@/lib/appointment-search';
 import { dateKey, formatMonthParam, isSameDay, startOfDay } from '@/lib/date-ranges';
 import {
   appointmentStatusBadgeVariant,
@@ -22,6 +23,7 @@ import {
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/dashboard/empty-state';
 import { AppointmentManageActions } from '@/components/dashboard/appointment-manage-actions';
+import { PatientSearchInput } from '@/components/dashboard/patient-search-input';
 
 interface AppointmentsCalendarProps {
   appointments: EncryptedAppointment[];
@@ -181,6 +183,7 @@ function AppointmentCard({
 export function AppointmentsCalendar({ appointments, month }: AppointmentsCalendarProps) {
   const router = useRouter();
   const today = useMemo(() => startOfDay(new Date()), []);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     if (month.getMonth() === today.getMonth() && month.getFullYear() === today.getFullYear()) {
       return today;
@@ -210,7 +213,27 @@ export function AppointmentsCalendar({ appointments, month }: AppointmentsCalend
   }
 
   const decrypted = useMemo(() => decryptAppointments(appointments), [appointments]);
-  const byDay = useMemo(() => groupByDay(decrypted), [decrypted]);
+  const searchActive = normalizePatientSearchQuery(searchQuery).length > 0;
+
+  const filtered = useMemo(
+    () => filterAppointmentsByPatientName(decrypted, searchQuery),
+    [decrypted, searchQuery],
+  );
+
+  const byDay = useMemo(() => groupByDay(filtered), [filtered]);
+
+  useEffect(() => {
+    if (!searchActive || filtered.length === 0) return;
+
+    const firstMatchDay = startOfDay(new Date(filtered[0]!.start_time));
+    setSelectedDate((current) => {
+      const currentKey = dateKey(current);
+      const hasMatchOnSelectedDay = filtered.some(
+        (appointment) => dateKey(new Date(appointment.start_time)) === currentKey,
+      );
+      return hasMatchOnSelectedDay ? current : firstMatchDay;
+    });
+  }, [filtered, searchActive]);
 
   const daysWithAppointments = useMemo(
     () =>
@@ -223,15 +246,28 @@ export function AppointmentsCalendar({ appointments, month }: AppointmentsCalend
     [byDay],
   );
 
+  const daysWithSearchMatches = useMemo(
+    () =>
+      searchActive
+        ? Array.from(
+            new Set(filtered.map((appointment) => dateKey(new Date(appointment.start_time)))),
+          ).map((key) => {
+            const [y, m, d] = key.split('-').map(Number);
+            return new Date(y, m - 1, d);
+          })
+        : [],
+    [filtered, searchActive],
+  );
+
   const selectedKey = dateKey(selectedDate);
   const selectedDayAppointments = byDay.get(selectedKey) ?? [];
 
   const upcoming = useMemo(
     () =>
-      decrypted
+      filtered
         .filter((a) => isActiveAppointmentStatus(a.status) && new Date(a.start_time) >= today)
         .sort((a, b) => a.start_time.localeCompare(b.start_time)),
-    [decrypted, today],
+    [filtered, today],
   );
 
   const stats = useMemo(() => {
@@ -261,6 +297,20 @@ export function AppointmentsCalendar({ appointments, month }: AppointmentsCalend
 
   return (
     <div className="space-y-8">
+      <PatientSearchInput
+        value={searchQuery}
+        onChange={setSearchQuery}
+        className="max-w-md"
+      />
+
+      {searchActive && (
+        <p className="text-sm text-muted-foreground">
+          {filtered.length === 0
+            ? `Keine Termine für „${searchQuery.trim()}“ in diesem Monat.`
+            : `${filtered.length} Treffer für „${searchQuery.trim()}“`}
+        </p>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-3">
         {[
           { label: 'Heute', value: stats.todayCount },
@@ -288,9 +338,13 @@ export function AppointmentsCalendar({ appointments, month }: AppointmentsCalend
             onMonthChange={handleMonthChange}
             selected={selectedDate}
             onSelect={(date) => date && setSelectedDate(startOfDay(date))}
-            modifiers={{ hasAppointments: daysWithAppointments }}
+            modifiers={{
+              hasAppointments: daysWithAppointments,
+              searchMatch: daysWithSearchMatches,
+            }}
             modifiersClassNames={{
               hasAppointments: 'font-semibold',
+              searchMatch: 'ring-2 ring-primary/40 ring-offset-1',
             }}
             className="mx-auto w-full [--cell-size:2.75rem]"
             components={{
@@ -340,8 +394,12 @@ export function AppointmentsCalendar({ appointments, month }: AppointmentsCalend
             </div>
           ) : (
             <EmptyState
-              title="Keine Termine an diesem Tag"
-              description="Wählen Sie einen anderen Tag im Kalender oder teilen Sie Ihren Buchungslink."
+              title={searchActive ? 'Keine Treffer an diesem Tag' : 'Keine Termine an diesem Tag'}
+              description={
+                searchActive
+                  ? 'Wählen Sie einen markierten Tag im Kalender oder passen Sie die Suche an.'
+                  : 'Wählen Sie einen anderen Tag im Kalender oder teilen Sie Ihren Buchungslink.'
+              }
             />
           )}
         </section>
@@ -350,9 +408,11 @@ export function AppointmentsCalendar({ appointments, month }: AppointmentsCalend
       <section className="space-y-4">
         <header>
           <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-            Kommende Termine
+            {searchActive ? 'Suchergebnisse' : 'Kommende Termine'}
           </p>
-          <h2 className="text-xl font-semibold">Alle anstehenden Termine</h2>
+          <h2 className="text-xl font-semibold">
+            {searchActive ? 'Gefundene Termine' : 'Alle anstehenden Termine'}
+          </h2>
         </header>
 
         {upcoming.length > 0 ? (
@@ -363,8 +423,12 @@ export function AppointmentsCalendar({ appointments, month }: AppointmentsCalend
           </div>
         ) : (
           <EmptyState
-            title="Keine anstehenden Termine"
-            description="Sobald Patienten online buchen, erscheinen die Termine hier und im Kalender."
+            title={searchActive ? 'Keine Treffer' : 'Keine anstehenden Termine'}
+            description={
+              searchActive
+                ? 'Versuchen Sie einen anderen Namen oder wechseln Sie den Monat.'
+                : 'Sobald Patienten online buchen, erscheinen die Termine hier und im Kalender.'
+            }
           />
         )}
       </section>
