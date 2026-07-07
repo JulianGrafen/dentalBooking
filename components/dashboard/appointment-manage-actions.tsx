@@ -24,12 +24,17 @@ import type { DecryptedAppointment } from '@/lib/appointment-decrypt';
 import { appointmentDurationMinutes } from '@/lib/appointment-times';
 import { formatAppointmentTimeRange } from '@/lib/format-datetime';
 import { isAwaitingConfirmation } from '@/lib/appointment-confirmation';
-import { emailActionMessage } from '@/lib/email/send-email';
+import { emailActionMessage, type SendEmailResult } from '@/lib/email/send-email';
 import { cn } from '@/lib/utils';
 
 interface AppointmentManageActionsProps {
   appointment: DecryptedAppointment;
   compact?: boolean;
+}
+
+interface AppointmentActionResponse {
+  error?: string;
+  email?: SendEmailResult;
 }
 
 function toIsoDate(date: Date): string {
@@ -95,10 +100,7 @@ export function AppointmentManageActions({
         }),
       });
 
-      const payload = (await response.json()) as {
-        error?: string;
-        email?: { sent: boolean; mode: string };
-      };
+      const payload = (await response.json()) as AppointmentActionResponse;
 
       if (!response.ok) {
         toast.error(payload.error ?? 'Bestätigung fehlgeschlagen');
@@ -134,10 +136,7 @@ export function AppointmentManageActions({
         }),
       });
 
-      const payload = (await response.json()) as {
-        error?: string;
-        email?: { sent: boolean; mode: string };
-      };
+      const payload = (await response.json()) as AppointmentActionResponse;
 
       if (!response.ok) {
         toast.error(payload.error ?? 'Stornierung fehlgeschlagen');
@@ -170,10 +169,7 @@ export function AppointmentManageActions({
         }),
       });
 
-      const payload = (await response.json()) as {
-        error?: string;
-        email?: { sent: boolean; mode: string };
-      };
+      const payload = (await response.json()) as AppointmentActionResponse;
 
       if (!response.ok) {
         toast.error(payload.error ?? 'Verschiebung fehlgeschlagen');
