@@ -18,7 +18,7 @@ import { buildSlotTimes } from '@/lib/appointment-times';
 import { findBookingTreatment, type PracticeBookingTreatment } from '@/lib/treatments';
 import { StepIndicator } from '@/components/booking/step-indicator';
 import { uiClasses } from '@/lib/ui-classes';
-import { createSupabaseBrowserClient } from '@/utils/supabase/client';
+import { createSupabasePublicBrowserClient } from '@/utils/supabase/public-browser';
 import { cn } from '@/lib/utils';
 
 import type { InsuranceType } from '@/types/database';
@@ -107,7 +107,7 @@ export function BookingWizard({
       setTimeSlot(null);
       setSlotsError(null);
 
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabasePublicBrowserClient();
       const { data, error: availabilityError } = await supabase.rpc(
         'get_public_booking_availability',
         {
@@ -196,7 +196,7 @@ export function BookingWizard({
         practicePublicKey,
       );
 
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabasePublicBrowserClient();
       const { error: insertError } = await supabase.rpc('create_public_booking', {
         booking_slug: practiceSlug,
         treatment_slug: treatment.slug,
