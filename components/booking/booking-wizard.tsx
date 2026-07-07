@@ -13,6 +13,7 @@ import { createBookingSchema } from '@/lib/booking-schema';
 import { mapBookingError } from '@/lib/booking-errors';
 import { formatOpeningHoursLabel, getOpeningHoursForDate } from '@/lib/booking-hours';
 import {
+  findBookedIntervalAtStart,
   getBookingSlotOptions,
   type BookedInterval,
   type BookingSlotOption,
@@ -210,14 +211,23 @@ export function BookingWizard({
 
       const supabase = createSupabasePublicBrowserClient();
       const isWaitlistRequest = selectedSlotOption?.status === 'waitlist';
+      const bookedSlot = isWaitlistRequest
+        ? findBookedIntervalAtStart(start_time, bookedIntervals)
+        : null;
+
+      if (isWaitlistRequest && !bookedSlot) {
+        setError(mapBookingError('appointment slot is available'));
+        return;
+      }
+
       const { error: insertError } = isWaitlistRequest
         ? await supabase.rpc('create_public_waitlist_entry', {
             booking_slug: practiceSlug,
             treatment_slug: treatment.slug,
             encrypted_payload: encryptedPayload,
             patient_email: parsed.data.email,
-            requested_start_time: start_time,
-            requested_end_time: end_time,
+            requested_start_time: bookedSlot!.start_time,
+            requested_end_time: bookedSlot!.end_time,
           })
         : await supabase.rpc('create_public_booking', {
             booking_slug: practiceSlug,

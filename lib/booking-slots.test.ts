@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  findBookedIntervalAtStart,
   generateCandidateSlots,
   getAvailableBookingSlots,
   getBookingSlotOptions,
@@ -121,5 +122,18 @@ describe('getBookingSlotOptions', () => {
     expect(slots.some((slot) => slot.time === '14:15' && slot.status === 'available')).toBe(
       false,
     );
+  });
+});
+
+describe('findBookedIntervalAtStart', () => {
+  it('finds a booked interval across Postgres and ISO timestamp formats', () => {
+    const booked = [
+      {
+        start_time: '2026-07-10 12:15:00+00',
+        end_time: '2026-07-10 12:45:00+00',
+      },
+    ];
+
+    expect(findBookedIntervalAtStart('2026-07-10T12:15:00.000Z', booked)).toEqual(booked[0]);
   });
 });

@@ -55,6 +55,14 @@ function hasExactBookedStart(candidateStart: string, booked: BookedInterval[]): 
   return booked.some((booking) => isSameInstant(booking.start_time, candidateStart));
 }
 
+/** Returns the booked interval that starts at the same instant as the candidate slot. */
+export function findBookedIntervalAtStart(
+  candidateStart: string,
+  booked: BookedInterval[],
+): BookedInterval | undefined {
+  return booked.find((booking) => isSameInstant(booking.start_time, candidateStart));
+}
+
 /** Free quarter-hour slots for a date, treatment duration and existing bookings. */
 export function getAvailableBookingSlots(
   isoDate: string,
