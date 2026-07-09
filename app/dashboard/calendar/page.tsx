@@ -42,7 +42,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   const appointmentsResult = await supabase
     .from('appointments')
-    .select('id, encrypted_payload, start_time, end_time, status')
+    .select('id, encrypted_payload, start_time, end_time, status, resource_id')
     .eq('practice_id', practice.id)
     .gte('start_time', range.startIso)
     .lt('start_time', range.endIso)

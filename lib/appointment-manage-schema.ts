@@ -20,7 +20,9 @@ export const rescheduleAppointmentSchema = patientNotificationSchema.extend({
   timeSlot: timeSlotSchema,
 });
 
-export const confirmAppointmentSchema = patientNotificationSchema;
+export const confirmAppointmentSchema = patientNotificationSchema.extend({
+  resourceId: z.string().uuid('Ungültige Raum-Auswahl').nullable().optional(),
+});
 
 export type CancelAppointmentInput = z.infer<typeof cancelAppointmentSchema>;
 export type RescheduleAppointmentInput = z.infer<typeof rescheduleAppointmentSchema>;

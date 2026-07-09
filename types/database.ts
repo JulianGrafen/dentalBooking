@@ -440,6 +440,20 @@ export type Database = {
           status: Database['public']['Enums']['appointment_status'];
         }[];
       };
+      confirm_practice_appointment: {
+        Args: {
+          target_appointment_id: string;
+          target_resource_id: string | null;
+          cancel_token_hash: string;
+        };
+        Returns: {
+          id: string;
+          start_time: string;
+          end_time: string;
+          status: Database['public']['Enums']['appointment_status'];
+          resource_id: string | null;
+        }[];
+      };
       offer_public_waitlist_for_slot: {
         Args: {
           target_practice_id: string;

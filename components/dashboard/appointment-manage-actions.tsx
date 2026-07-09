@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { de } from 'react-day-picker/locale';
-import { CalendarClock, CalendarX2, CheckCircle2 } from 'lucide-react';
+import { CalendarClock, CalendarX2, CheckCircle2, DoorOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { createSupabaseBrowserClient } from '@/utils/supabase/client';
 import { QUARTER_HOUR_TIME_PATTERN } from '@/lib/booking-schema';
 import { formatOpeningHoursLabel, getOpeningHoursForDate } from '@/lib/booking-hours';
 import { generateCandidateSlots } from '@/lib/booking-slots';
@@ -36,6 +37,16 @@ interface AppointmentActionResponse {
   error?: string;
   email?: SendEmailResult;
 }
+
+interface RoomOption {
+  id: string;
+  name: string;
+}
+
+const NO_ROOM_VALUE = '';
+
+const selectClassName =
+  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
 
 function toIsoDate(date: Date): string {
   const year = date.getFullYear();
@@ -58,9 +69,12 @@ export function AppointmentManageActions({
 }: AppointmentManageActionsProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rooms, setRooms] = useState<RoomOption[]>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState<string>(NO_ROOM_VALUE);
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date(appointment.start_time));
   const [timeSlot, setTimeSlot] = useState(() => slotFromStartTime(appointment.start_time));
 
@@ -81,6 +95,29 @@ export function AppointmentManageActions({
     return generateCandidateSlots(opening.open, opening.close, durationMinutes);
   }, [selectedDate, durationMinutes]);
 
+  const loadRooms = useCallback(async () => {
+    if (!awaitingConfirmation) return;
+
+    const supabase = createSupabaseBrowserClient();
+    const { data, error } = await supabase
+      .from('resources')
+      .select('id, name')
+      .eq('type', 'room')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) {
+      setRooms([]);
+      return;
+    }
+
+    setRooms(data ?? []);
+  }, [awaitingConfirmation]);
+
+  useEffect(() => {
+    loadRooms();
+  }, [loadRooms]);
+
   if (!isBooked && !awaitingConfirmation) return null;
 
   async function handleConfirm() {
@@ -97,6 +134,7 @@ export function AppointmentManageActions({
           patientEmail: appointment.patientEmail,
           patientName: appointment.patientName,
           treatment: appointment.treatment,
+          resourceId: selectedRoomId === NO_ROOM_VALUE ? null : selectedRoomId,
         }),
       });
 
@@ -107,6 +145,7 @@ export function AppointmentManageActions({
         return;
       }
 
+      setConfirmOpen(false);
       toast.success(emailActionMessage('bestätigt', payload.email));
       router.refresh();
     });
@@ -191,7 +230,7 @@ export function AppointmentManageActions({
             size="sm"
             className="gap-1.5 shadow-sm shadow-primary/20"
             disabled={pending}
-            onClick={handleConfirm}
+            onClick={() => setConfirmOpen(true)}
           >
             <CheckCircle2 className="size-3.5" />
             Bestätigen
@@ -226,6 +265,59 @@ export function AppointmentManageActions({
           Verwaltung nicht möglich — E-Mail fehlt oder Entschlüsselung fehlgeschlagen.
         </p>
       )}
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Termin bestätigen</DialogTitle>
+            <DialogDescription>
+              Optional einen Raum zuweisen. Der Raum wird beim Bestätigen gegen
+              bereits bestätigte Termine geprüft.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-xl border border-border/60 bg-muted/30 p-4 text-sm">
+              <p className="font-medium">{appointment.patientName}</p>
+              <p className="mt-1 text-muted-foreground">{appointment.treatment}</p>
+              <p className="mt-1 text-muted-foreground">{slotLabel}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`confirm-room-${appointment.id}`} className="flex items-center gap-1.5">
+                <DoorOpen className="size-3.5" />
+                Raum
+              </Label>
+              <select
+                id={`confirm-room-${appointment.id}`}
+                className={selectClassName}
+                value={selectedRoomId}
+                disabled={pending}
+                onChange={(event) => setSelectedRoomId(event.target.value)}
+              >
+                <option value={NO_ROOM_VALUE}>Kein Raum zuweisen</option>
+                {rooms.map((room) => (
+                  <option key={room.id} value={room.id}>
+                    {room.name}
+                  </option>
+                ))}
+              </select>
+              {rooms.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Noch keine aktiven Räume angelegt. Räume können unter Ressourcen
+                  erstellt werden.
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={pending}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleConfirm} disabled={pending || !canNotify}>
+              {pending ? 'Wird bestätigt…' : 'Bestätigen'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={cancelOpen}

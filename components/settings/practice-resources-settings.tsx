@@ -147,9 +147,9 @@ export function PracticeResourcesSettings({
       <CardHeader>
         <CardTitle>Räume, Stühle & Geräte</CardTitle>
         <CardDescription>
-          Ressourcen, die von Behandlungen belegt werden. Eine Behandlung mit
-          Pflicht-Ressource (z. B. Röntgen → Röntgenraum) ist nur buchbar, wenn die
-          Ressource zur gewünschten Zeit frei ist.
+          Ressourcen der Praxis. Räume können beim Bestätigen eines Termins
+          zugewiesen werden; belegte Räume blockieren parallele Bestätigungen im
+          selben Zeitfenster.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

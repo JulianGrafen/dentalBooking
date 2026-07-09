@@ -21,15 +21,7 @@ interface TreatmentRow {
   durationMinutes: number;
   isActive: boolean;
   sortOrder: number;
-  requiredResourceId: string | null;
 }
-
-interface ResourceOption {
-  id: string;
-  name: string;
-}
-
-const NO_RESOURCE_VALUE = '';
 
 interface BookingTreatmentsSettingsProps {
   practiceId: string;
@@ -44,7 +36,6 @@ export function BookingTreatmentsSettings({
   canEdit,
 }: BookingTreatmentsSettingsProps) {
   const [treatments, setTreatments] = useState<TreatmentRow[]>([]);
-  const [resources, setResources] = useState<ResourceOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -55,39 +46,28 @@ export function BookingTreatmentsSettings({
     setError(null);
 
     const supabase = createSupabaseBrowserClient();
-    const [treatmentsResult, resourcesResult] = await Promise.all([
-      supabase
-        .from('practice_booking_treatments')
-        .select('slug, label, duration_minutes, is_active, sort_order, required_resource_id')
-        .eq('practice_id', practiceId)
-        .order('sort_order', { ascending: true })
-        .order('label', { ascending: true }),
-      supabase
-        .from('resources')
-        .select('id, name')
-        .eq('practice_id', practiceId)
-        .eq('is_active', true)
-        .order('name'),
-    ]);
+    const { data, error: loadError } = await supabase
+      .from('practice_booking_treatments')
+      .select('slug, label, duration_minutes, is_active, sort_order')
+      .eq('practice_id', practiceId)
+      .order('sort_order', { ascending: true })
+      .order('label', { ascending: true });
 
-    if (treatmentsResult.error) {
+    if (loadError) {
       setError('Behandlungen konnten nicht geladen werden.');
       setLoading(false);
       return;
     }
 
     setTreatments(
-      (treatmentsResult.data ?? []).map((row) => ({
+      (data ?? []).map((row) => ({
         slug: row.slug,
         label: row.label,
         durationMinutes: row.duration_minutes,
         isActive: row.is_active,
         sortOrder: row.sort_order,
-        requiredResourceId: row.required_resource_id,
       })),
     );
-    // Resources table may not exist yet on older databases — treatments stay editable.
-    setResources(resourcesResult.error ? [] : (resourcesResult.data ?? []));
     setLoading(false);
   }, [practiceId]);
 
@@ -124,7 +104,6 @@ export function BookingTreatmentsSettings({
             .update({
               duration_minutes: treatment.durationMinutes,
               is_active: treatment.isActive,
-              required_resource_id: treatment.requiredResourceId,
               updated_at: new Date().toISOString(),
             })
             .eq('practice_id', practiceId)
@@ -208,35 +187,6 @@ export function BookingTreatmentsSettings({
                         ))}
                       </select>
                     </div>
-
-                    {resources.length > 0 && (
-                      <div className="space-y-1.5">
-                        <Label htmlFor={`resource-${treatment.slug}`}>
-                          Benötigte Ressource
-                        </Label>
-                        <select
-                          id={`resource-${treatment.slug}`}
-                          className={selectClassName}
-                          value={treatment.requiredResourceId ?? NO_RESOURCE_VALUE}
-                          disabled={!canEdit || isPending}
-                          onChange={(event) =>
-                            updateTreatment(treatment.slug, {
-                              requiredResourceId:
-                                event.target.value === NO_RESOURCE_VALUE
-                                  ? null
-                                  : event.target.value,
-                            })
-                          }
-                        >
-                          <option value={NO_RESOURCE_VALUE}>Keine</option>
-                          {resources.map((resource) => (
-                            <option key={resource.id} value={resource.id}>
-                              {resource.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
 
                     <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm">
                       <input

@@ -47,18 +47,27 @@ export async function POST(request: Request, context: RouteContext) {
   const cancelToken = createPublicCancelToken();
   const requestOrigin = new URL(request.url).origin;
 
-  const { data: updated, error: updateError } = await auth.supabase
-    .from('appointments')
-    .update({
-      status: 'booked',
-      public_cancel_token_hash: hashPublicCancelToken(cancelToken),
-    })
-    .eq('id', id)
-    .select('id, start_time, end_time, status')
-    .single();
+  const { data: updatedRows, error: updateError } = await auth.supabase.rpc(
+    'confirm_practice_appointment',
+    {
+      target_appointment_id: id,
+      target_resource_id: parsed.data.resourceId ?? null,
+      cancel_token_hash: hashPublicCancelToken(cancelToken),
+    },
+  );
+  const updated = updatedRows?.[0];
 
   if (updateError || !updated) {
-    return NextResponse.json({ error: 'Bestätigung fehlgeschlagen' }, { status: 500 });
+    const message = updateError?.message ?? 'Bestätigung fehlgeschlagen';
+    const isRoomConflict = message.toLowerCase().includes('room resource is not available');
+    return NextResponse.json(
+      {
+        error: isRoomConflict
+          ? 'Der ausgewählte Raum ist zu dieser Zeit bereits belegt.'
+          : 'Bestätigung fehlgeschlagen',
+      },
+      { status: isRoomConflict ? 409 : 500 },
+    );
   }
 
   let emailResult: SendEmailResult = { sent: false, mode: 'simulated' };
