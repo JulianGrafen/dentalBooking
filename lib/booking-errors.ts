@@ -11,6 +11,9 @@ export function mapBookingError(message: string): string {
   if (normalized.includes('appointment slot is no longer available')) {
     return 'Dieser Termin ist inzwischen belegt. Bitte wählen Sie eine andere Uhrzeit.';
   }
+  if (normalized.includes('required resource is not available')) {
+    return 'Der benötigte Behandlungsraum ist zu dieser Zeit belegt. Bitte wählen Sie eine andere Uhrzeit.';
+  }
   if (normalized.includes('appointment slot is available')) {
     return 'Dieser Termin ist inzwischen frei. Bitte buchen Sie ihn direkt.';
   }

@@ -17,12 +17,6 @@ export function currentMonthRange(now: Date = new Date()): DateRange {
   return { startIso: start.toISOString(), endIso: end.toISOString() };
 }
 
-export function monthRangeFor(year: number, month: number): DateRange {
-  const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 1);
-  return { startIso: start.toISOString(), endIso: end.toISOString() };
-}
-
 export function weekRange(now: Date = new Date()): DateRange {
   const day = now.getDay();
   const diffToMonday = (day + 6) % 7;
@@ -46,19 +40,6 @@ export function parseMonthParam(
   const [year, month] = value.split('-').map(Number);
   if (month < 1 || month > 12) return null;
   return { year, month };
-}
-
-export function formatMonthParam(year: number, month: number): string {
-  return `${year}-${String(month).padStart(2, '0')}`;
-}
-
-export function shiftMonth(
-  year: number,
-  month: number,
-  delta: number,
-): { year: number; month: number } {
-  const date = new Date(year, month - 1 + delta, 1);
-  return { year: date.getFullYear(), month: date.getMonth() + 1 };
 }
 
 export function isSameDay(a: Date, b: Date): boolean {

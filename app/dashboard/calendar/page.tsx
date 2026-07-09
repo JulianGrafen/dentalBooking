@@ -1,19 +1,19 @@
 import { redirect } from 'next/navigation';
-import { CalendarDays } from 'lucide-react';
+import { parseMonthParam } from '@/lib/date-ranges';
 import {
-  formatMonthParam,
-  monthRangeFor,
-  parseMonthParam,
-} from '@/lib/date-ranges';
+  isScheduleView,
+  parseDateParam,
+  scheduleFetchRange,
+  type ScheduleView,
+} from '@/lib/schedule-view';
 import { getCurrentPracticeContext } from '@/lib/server/current-practice';
 import { isSupabaseConfigured } from '@/lib/supabase-config';
 import { uiClasses } from '@/lib/ui-classes';
 import { SupabaseNotConfigured } from '@/components/auth/supabase-not-configured';
-import { AppointmentsCalendar } from '@/components/dashboard/appointments-calendar';
-import { CalendarMonthNav } from '@/components/dashboard/calendar-month-nav';
+import { ScheduleCalendar } from '@/components/dashboard/schedule-calendar';
 
 interface CalendarPageProps {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ view?: string; date?: string; month?: string }>;
 }
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
@@ -30,50 +30,41 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const { supabase, practice } = context;
 
   const params = await searchParams;
-  const now = new Date();
-  const parsed = parseMonthParam(params.month);
-  const year = parsed?.year ?? now.getFullYear();
-  const month = parsed?.month ?? now.getMonth() + 1;
-  const range = monthRangeFor(year, month);
-  const monthDate = new Date(year, month - 1, 1);
+  const view: ScheduleView = isScheduleView(params.view) ? params.view : 'day';
+
+  // Legacy ?month=YYYY-MM links from older bookmarks still open the right month.
+  const legacyMonth = parseMonthParam(params.month);
+  const anchor =
+    parseDateParam(params.date) ??
+    (legacyMonth ? new Date(legacyMonth.year, legacyMonth.month - 1, 1) : new Date());
+
+  const range = scheduleFetchRange(view, anchor);
 
   const appointmentsResult = await supabase
-      .from('appointments')
-      .select('id, encrypted_payload, start_time, end_time, status')
-      .eq('practice_id', practice.id)
-      .gte('start_time', range.startIso)
-      .lt('start_time', range.endIso)
-      .order('start_time');
+    .from('appointments')
+    .select('id, encrypted_payload, start_time, end_time, status')
+    .eq('practice_id', practice.id)
+    .gte('start_time', range.startIso)
+    .lt('start_time', range.endIso)
+    .order('start_time');
 
   const appointments = appointmentsResult.data ?? [];
 
   return (
     <main className={`${uiClasses.pageContainer} max-w-6xl`}>
-        <header className="mb-8 space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-            Kalender
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            {practice.name}
-          </h1>
-          <p className="text-muted-foreground">
-            Monatsübersicht — Ende-zu-Ende entschlüsselt im Browser
-          </p>
-        </header>
+      <header className="mb-6 space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+          Kalender
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">{practice.name}</h1>
+        <p className="text-muted-foreground">
+          Terminkalender — Ende-zu-Ende entschlüsselt im Browser
+        </p>
+      </header>
 
-        <section className={`${uiClasses.glassCard} p-6 sm:p-8`} data-tour="calendar-overview">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <CalendarMonthNav year={year} month={month} />
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CalendarDays className="size-4 text-primary" />
-              <span>
-                {appointments.length} Termin(e) im {formatMonthParam(year, month)}
-              </span>
-            </div>
-          </div>
-
-          <AppointmentsCalendar appointments={appointments} month={monthDate} />
-        </section>
-      </main>
+      <section data-tour="calendar-overview">
+        <ScheduleCalendar appointments={appointments} view={view} anchor={anchor} />
+      </section>
+    </main>
   );
 }

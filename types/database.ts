@@ -129,6 +129,7 @@ export type Database = {
           duration_minutes: number;
           is_active: boolean;
           sort_order: number;
+          required_resource_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -139,6 +140,7 @@ export type Database = {
           duration_minutes: number;
           is_active?: boolean;
           sort_order?: number;
+          required_resource_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -149,6 +151,7 @@ export type Database = {
           duration_minutes?: number;
           is_active?: boolean;
           sort_order?: number;
+          required_resource_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -215,6 +218,7 @@ export type Database = {
           end_time: string;
           status: Database['public']['Enums']['appointment_status'];
           source: Database['public']['Enums']['appointment_source'];
+          resource_id: string | null;
           cancelled_at: string | null;
           cancellation_notice_dismissed_at: string | null;
           public_cancel_token_hash: string | null;
@@ -229,6 +233,7 @@ export type Database = {
           end_time: string;
           status?: Database['public']['Enums']['appointment_status'];
           source?: Database['public']['Enums']['appointment_source'];
+          resource_id?: string | null;
           cancelled_at?: string | null;
           cancellation_notice_dismissed_at?: string | null;
           public_cancel_token_hash?: string | null;
@@ -243,6 +248,7 @@ export type Database = {
           end_time?: string;
           status?: Database['public']['Enums']['appointment_status'];
           source?: Database['public']['Enums']['appointment_source'];
+          resource_id?: string | null;
           cancelled_at?: string | null;
           cancellation_notice_dismissed_at?: string | null;
           public_cancel_token_hash?: string | null;
@@ -252,6 +258,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: 'appointments_practice_id_fkey';
+            columns: ['practice_id'];
+            isOneToOne: false;
+            referencedRelation: 'practices';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      resources: {
+        Row: {
+          id: string;
+          practice_id: string;
+          name: string;
+          type: Database['public']['Enums']['resource_type'];
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          practice_id: string;
+          name: string;
+          type: Database['public']['Enums']['resource_type'];
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          practice_id?: string;
+          name?: string;
+          type?: Database['public']['Enums']['resource_type'];
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'resources_practice_id_fkey';
             columns: ['practice_id'];
             isOneToOne: false;
             referencedRelation: 'practices';
@@ -467,6 +511,7 @@ export type Database = {
       appointment_status: 'booked' | 'cancelled' | 'pending';
       appointment_source: 'manual' | 'online' | 'recall' | 'smart_fill';
       practice_role: 'owner' | 'calendar_manager';
+      resource_type: 'chair' | 'room' | 'equipment';
     };
     CompositeTypes: Record<never, never>;
   };
@@ -484,3 +529,5 @@ export type AppointmentSource = Database['public']['Enums']['appointment_source'
 export type PracticeRole = Database['public']['Enums']['practice_role'];
 export type PracticeBookingTreatmentRow =
   Database['public']['Tables']['practice_booking_treatments']['Row'];
+export type PracticeResource = Database['public']['Tables']['resources']['Row'];
+export type ResourceType = Database['public']['Enums']['resource_type'];

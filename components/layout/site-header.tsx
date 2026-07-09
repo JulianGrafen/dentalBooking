@@ -3,7 +3,15 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { CalendarDays, ClipboardList, LayoutDashboard, LogOut, Shield, Users } from 'lucide-react';
+import {
+  Armchair,
+  CalendarDays,
+  ClipboardList,
+  LayoutDashboard,
+  LogOut,
+  Shield,
+  Users,
+} from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/utils/supabase/client';
 import { isSupabaseConfigured } from '@/lib/supabase-config';
 import { BrandLogo } from '@/components/layout/brand-logo';
@@ -95,6 +103,17 @@ export function SiteHeader() {
                 <Link href="/dashboard/treatments">
                   <ClipboardList className="size-4" />
                   Behandlungen
+                </Link>
+              </Button>
+              <Button
+                asChild
+                variant={pathname.startsWith('/dashboard/resources') ? 'secondary' : 'ghost'}
+                size="sm"
+                className="hidden gap-1.5 sm:inline-flex"
+              >
+                <Link href="/dashboard/resources">
+                  <Armchair className="size-4" />
+                  Ressourcen
                 </Link>
               </Button>
               <Button
